@@ -1,22 +1,55 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FileText, Calendar, CheckCircle, XCircle, CreditCard } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Profile = () => {
-  // Mock user data - this should come from context/state
-  const user = {
-    name: "John Doe",
-    email: "john@example.com",
-    hasFolio: true,
-    hasAccess: false,
-    trialDaysLeft: 0,
-    cvUploaded: true,
-    selectedIndustries: ["Technology", "Finance", "Healthcare"],
-    subscriptionExpiry: "2025-12-31",
+  const navigate = useNavigate();
+  const { user, profile, folio, subscription, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container max-w-4xl mx-auto px-4 py-6">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-muted rounded w-1/4"></div>
+            <div className="h-64 bg-muted rounded"></div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!user || !profile) {
+    return null;
+  }
+
+  const hasFolio = !!folio;
+  const hasAccess = subscription && (subscription.status === 'trial' || subscription.status === 'active');
+  
+  const getTrialDaysLeft = () => {
+    if (subscription?.status === 'trial' && subscription.trialEndDate) {
+      const now = new Date();
+      const endDate = subscription.trialEndDate.toDate();
+      const diffTime = endDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays > 0 ? diffDays : 0;
+    }
+    return 0;
   };
+
+  const trialDaysLeft = getTrialDaysLeft();
 
   return (
     <Layout>
@@ -31,17 +64,16 @@ const Profile = () => {
           <CardContent>
             <div className="flex items-start gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src="" alt={user.name} />
+                <AvatarImage src={profile.profilePictureUrl} alt={profile.firstName} />
                 <AvatarFallback className="text-lg bg-primary text-primary-foreground">
-                  {user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                  {profile.firstName[0]}{profile.lastName[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-foreground">{user.name}</h3>
-                <p className="text-sm text-muted-foreground mb-3">{user.email}</p>
+                <h3 className="text-lg font-semibold text-foreground">
+                  {profile.firstName} {profile.lastName}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-3">{profile.email}</p>
                 <div className="flex items-center gap-2">
                   {user.hasFolio ? (
                     <Badge variant="default" className="gap-1">
@@ -92,7 +124,7 @@ const Profile = () => {
                 <div>
                   <p className="text-sm font-medium mb-2">Selected Industries</p>
                   <div className="flex flex-wrap gap-2">
-                    {user.selectedIndustries.map((industry) => (
+                    {folio.industries.map((industry) => (
                       <Badge key={industry} variant="secondary">
                         {industry}
                       </Badge>
@@ -110,7 +142,7 @@ const Profile = () => {
             <CardTitle>Subscription Status</CardTitle>
           </CardHeader>
           <CardContent>
-            {!user.hasAccess && user.trialDaysLeft === 0 ? (
+            {!hasAccess && trialDaysLeft === 0 ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-destructive">
                   <XCircle className="h-5 w-5" />
@@ -121,19 +153,19 @@ const Profile = () => {
                     </p>
                   </div>
                 </div>
-                <Button className="w-full gap-2">
+                <Button className="w-full gap-2" onClick={() => navigate("/payment")}>
                   <CreditCard className="h-4 w-4" />
                   Pay Access Fee
                 </Button>
               </div>
-            ) : user.trialDaysLeft > 0 ? (
+            ) : trialDaysLeft > 0 ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-warning">
                   <Calendar className="h-5 w-5" />
                   <div>
                     <p className="text-sm font-medium">Trial Period Active</p>
                     <p className="text-xs text-muted-foreground">
-                      {user.trialDaysLeft} days remaining
+                      {trialDaysLeft} days remaining
                     </p>
                   </div>
                 </div>
@@ -145,11 +177,11 @@ const Profile = () => {
                   <div>
                     <p className="text-sm font-medium">Active Subscription</p>
                     <p className="text-xs text-muted-foreground">
-                      Expires on {new Date(user.subscriptionExpiry).toLocaleDateString()}
+                      Expires on {subscription?.subscriptionEndDate?.toDate().toLocaleDateString()}
                     </p>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={() => navigate("/payment")}>
                   Renew Subscription
                 </Button>
               </div>
@@ -158,10 +190,10 @@ const Profile = () => {
         </Card>
 
         {/* Actions */}
-        {!user.hasFolio && (
+        {!hasFolio && (
           <Card>
             <CardContent className="pt-6">
-              <Button className="w-full" size="lg" onClick={() => window.location.href = "/build-folio"}>
+              <Button className="w-full" size="lg" onClick={() => navigate("/build-folio")}>
                 Build Your Folio
               </Button>
             </CardContent>

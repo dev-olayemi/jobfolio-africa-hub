@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Upload, CheckCircle } from "lucide-react";
+import { Upload, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, setDoc, doc, Timestamp } from "firebase/firestore";
+import { storage, db } from "@/lib/firebase";
 
 const industries = [
   "Technology",
@@ -22,10 +27,22 @@ const industries = [
 ];
 
 const BuildFolio = () => {
+  const navigate = useNavigate();
+  const { user, folio, refreshUserData } = useAuth();
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+    }
+    // Redirect if folio already exists
+    if (folio) {
+      navigate("/profile");
+    }
+  }, [user, folio, navigate]);
 
   const handleIndustryToggle = (industry: string) => {
     if (selectedIndustries.includes(industry)) {
@@ -54,6 +71,12 @@ const BuildFolio = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!user) {
+      toast.error("Please sign in to continue");
+      navigate("/auth");
+      return;
+    }
+
     if (!cvFile) {
       toast.error("Please upload your CV");
       return;
@@ -66,12 +89,49 @@ const BuildFolio = () => {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Upload CV to Firebase Storage
+      const storageRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
+      await uploadBytes(storageRef, cvFile);
+      const cvUrl = await getDownloadURL(storageRef);
+
+      // Create folio document
+      const folioData = {
+        userId: user.uid,
+        cvUrl,
+        cvFileName: cvFile.name,
+        industries: selectedIndustries,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+
+      await addDoc(collection(db, 'folios'), folioData);
+
+      // Create trial subscription
+      const trialStartDate = Timestamp.now();
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + 3);
+
+      const subscriptionData = {
+        userId: user.uid,
+        status: 'trial',
+        trialStartDate,
+        trialEndDate: Timestamp.fromDate(trialEndDate),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+
+      await setDoc(doc(db, 'subscriptions', user.uid), subscriptionData);
+
+      await refreshUserData();
       setIsComplete(true);
-      toast.success("Folio created! Check your email for trial activation");
-    }, 2000);
+      toast.success("Folio created! Your 3-day trial has been activated.");
+    } catch (error) {
+      console.error("Error creating folio:", error);
+      toast.error("Failed to create folio. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isComplete) {
@@ -94,10 +154,10 @@ const BuildFolio = () => {
                   You can now access job listings and apply to positions that match your selected industries.
                 </p>
                 <div className="flex gap-3 justify-center">
-                  <Button onClick={() => window.location.href = "/jobs"}>
+                  <Button onClick={() => navigate("/jobs")}>
                     Browse Jobs
                   </Button>
-                  <Button variant="outline" onClick={() => window.location.href = "/profile"}>
+                  <Button variant="outline" onClick={() => navigate("/profile")}>
                     View Profile
                   </Button>
                 </div>
@@ -187,9 +247,10 @@ const BuildFolio = () => {
           <Button
             type="submit"
             size="lg"
-            className="w-full"
+            className="w-full gap-2"
             disabled={isSubmitting || !cvFile || selectedIndustries.length < 3}
           >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {isSubmitting ? "Creating Folio..." : "Create Folio & Start Trial"}
           </Button>
         </form>

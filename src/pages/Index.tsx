@@ -1,10 +1,14 @@
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, Globe, Briefcase, Users, TrendingUp } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import logoImage from "@/assets/jobfolio-logo.jpg";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   return (
     <Layout>
       <div className="container max-w-6xl mx-auto px-4">
@@ -23,12 +27,25 @@ const Index = () => {
               Connect with top employers across Africa. Build your professional folio and access thousands of job opportunities tailored to your skills.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" onClick={() => window.location.href = "/build-folio"}>
-                Build Your Folio - Get 3 Days Free
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => window.location.href = "/jobs"}>
-                Browse Jobs
-              </Button>
+              {user ? (
+                <>
+                  <Button size="lg" onClick={() => navigate("/jobs")}>
+                    Browse Jobs
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={() => navigate("/profile")}>
+                    View Profile
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="lg" onClick={() => navigate("/auth")}>
+                    Get Started - 3 Days Free
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={() => navigate("/jobs")}>
+                    Browse Jobs
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </section>

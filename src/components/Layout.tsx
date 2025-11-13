@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Briefcase, User, Menu, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 import logoImage from "@/assets/jobfolio-logo.jpg";
 
 interface LayoutProps {
@@ -41,6 +42,14 @@ const menuItems = [
 export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    setSheetOpen(false);
+    navigate("/");
+  };
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -72,7 +81,7 @@ export const Layout = ({ children }: LayoutProps) => {
         </DropdownMenu>
 
         {/* Right: Burger Menu */}
-        <Sheet>
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon">
               <Menu className="h-5 w-5" />
@@ -85,11 +94,34 @@ export const Layout = ({ children }: LayoutProps) => {
                   key={item.path}
                   variant={isActive(item.path) ? "default" : "ghost"}
                   className="justify-start"
-                  onClick={() => navigate(item.path)}
+                  onClick={() => {
+                    navigate(item.path);
+                    setSheetOpen(false);
+                  }}
                 >
                   {item.label}
                 </Button>
               ))}
+              {user ? (
+                <Button
+                  variant="ghost"
+                  className="justify-start text-destructive"
+                  onClick={handleLogout}
+                >
+                  Sign Out
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="justify-start"
+                  onClick={() => {
+                    navigate("/auth");
+                    setSheetOpen(false);
+                  }}
+                >
+                  Sign In
+                </Button>
+              )}
             </div>
           </SheetContent>
         </Sheet>
