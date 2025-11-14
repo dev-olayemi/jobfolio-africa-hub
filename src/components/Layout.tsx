@@ -51,7 +51,9 @@ export const Layout = ({ children }: LayoutProps) => {
   useEffect(() => {
     // persist selection
     localStorage.setItem("selectedCountry", selectedCountry);
-    window.dispatchEvent(new CustomEvent("countryChanged", { detail: selectedCountry }));
+    window.dispatchEvent(
+      new CustomEvent("countryChanged", { detail: selectedCountry })
+    );
   }, [selectedCountry]);
 
   const handleLogout = async () => {
@@ -70,7 +72,9 @@ export const Layout = ({ children }: LayoutProps) => {
           <img src={logoImage} alt="JobFolio" className="h-10 rounded-md" />
           <div>
             <div className="text-lg font-bold">JobFolio Africa</div>
-            <div className="text-xs text-muted-foreground">Find jobs in your country</div>
+            <div className="text-xs text-muted-foreground">
+              Find jobs in your country
+            </div>
           </div>
         </div>
 
@@ -101,95 +105,103 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
 
           {/* Right actions */}
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-72 bg-card">
-            <div className="flex flex-col gap-2 mt-8">
-              {menuItems.map((item) => (
-                <Button
-                  key={item.path}
-                  variant={isActive(item.path) ? "default" : "ghost"}
-                  className="justify-start"
-                  onClick={() => {
-                    navigate(item.path);
-                    setSheetOpen(false);
-                  }}
-                >
-                  {item.label}
-                </Button>
-              ))}
-              {user ? (
-                <Button
-                  variant="ghost"
-                  className="justify-start text-destructive"
-                  onClick={handleLogout}
-                >
-                  Sign Out
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  className="justify-start"
-                  onClick={() => {
-                    navigate("/auth");
-                    setSheetOpen(false);
-                  }}
-                >
-                  Sign In
-                </Button>
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* User summary on desktop */}
-        {user ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2">
-                <img
-                  src={profile?.profilePictureUrl}
-                  alt="avatar"
-                  className="h-8 w-8 rounded-full object-cover"
-                />
-                <div className="hidden sm:flex flex-col items-start">
-                  <span className="text-sm font-medium">
-                    {profile?.firstName} {profile?.lastName}
-                  </span>
-                  <div className="flex gap-1">
-                    {(profile?.badges || []).slice(0, 3).map((b) => (
-                      <span key={b} className="text-xs px-2 py-0.5 rounded-full bg-muted">
-                        {b}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-5 w-5" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => navigate("/profile")}>
-                Profile
-              </DropdownMenuItem>
-              {/* Simple admin link — extend with real admin checks later */}
-              {profile?.isAdmin || profile?.email === "alice@example.com" ? (
-                <DropdownMenuItem onClick={() => navigate("/admin/jobs")}>
-                  Admin Jobs
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72 bg-card">
+              <div className="flex flex-col gap-2 mt-8">
+                {menuItems.map((item) => (
+                  <Button
+                    key={item.path}
+                    variant={isActive(item.path) ? "default" : "ghost"}
+                    className="justify-start"
+                    onClick={() => {
+                      navigate(item.path);
+                      setSheetOpen(false);
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+                {user ? (
+                  <Button
+                    variant="ghost"
+                    className="justify-start text-destructive"
+                    onClick={handleLogout}
+                  >
+                    Sign Out
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="justify-start"
+                    onClick={() => {
+                      navigate("/auth");
+                      setSheetOpen(false);
+                    }}
+                  >
+                    Sign In
+                  </Button>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* User summary on desktop */}
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <img
+                    src={profile?.profilePictureUrl}
+                    alt="avatar"
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                  <div className="hidden sm:flex flex-col items-start">
+                    <span className="text-sm font-medium">
+                      {profile?.firstName} {profile?.lastName}
+                    </span>
+                    <div className="flex gap-1">
+                      {(profile?.badges || []).slice(0, 3).map((b) => (
+                        <span
+                          key={b}
+                          className="text-xs px-2 py-0.5 rounded-full bg-muted"
+                        >
+                          {b}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                  Profile
                 </DropdownMenuItem>
-              ) : null}
-              <DropdownMenuItem onClick={handleLogout}>Sign Out</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <div className="hidden sm:flex gap-2">
-            <Button variant="ghost" onClick={() => navigate("/auth")}>Sign In</Button>
-            <Button onClick={() => navigate("/auth")}>Sign Up</Button>
-          </div>
-        )}
+                {/* Simple admin link — extend with real admin checks later */}
+                {profile?.isAdmin || profile?.email === "alice@example.com" ? (
+                  <DropdownMenuItem onClick={() => navigate("/admin/jobs")}>
+                    Admin Jobs
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onClick={handleLogout}>
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="hidden sm:flex gap-2">
+              <Button variant="ghost" onClick={() => navigate("/auth")}>
+                Sign In
+              </Button>
+              <Button onClick={() => navigate("/auth")}>Sign Up</Button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Main Content */}
