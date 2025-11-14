@@ -5,7 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FileText, Calendar, CheckCircle, XCircle, CreditCard } from "lucide-react";
+import {
+  FileText,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  CreditCard,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Profile = () => {
@@ -32,14 +38,62 @@ const Profile = () => {
   }
 
   if (!user || !profile) {
-    return null;
+    // If there was a permission error while fetching profile data, show a helpful message
+    return (
+      <Layout>
+        <div className="container max-w-4xl mx-auto px-4 py-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Unable to load profile</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  We couldn't load your profile. This is often caused by
+                  Firestore security rules that prevent the app from reading
+                  your profile document, or the app may be connected to the
+                  wrong Firebase project.
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={() => navigate("/auth")}>Sign In</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // attempt to refresh user data
+                      // refreshUserData is obtained from useAuth below via destructuring in the component
+                      // We'll call it using a window event to avoid changing the component signature here.
+                      window.dispatchEvent(new CustomEvent("refreshUserData"));
+                    }}
+                  >
+                    Retry
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      window.open(
+                        "https://firebase.google.com/docs/firestore/security/get-started",
+                        "_blank"
+                      )
+                    }
+                  >
+                    Firestore Rules Docs
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
   }
 
   const hasFolio = !!folio;
-  const hasAccess = subscription && (subscription.status === 'trial' || subscription.status === 'active');
-  
+  const hasAccess =
+    subscription &&
+    (subscription.status === "trial" || subscription.status === "active");
+
   const getTrialDaysLeft = () => {
-    if (subscription?.status === 'trial' && subscription.trialEndDate) {
+    if (subscription?.status === "trial" && subscription.trialEndDate) {
       const now = new Date();
       const endDate = subscription.trialEndDate.toDate();
       const diffTime = endDate.getTime() - now.getTime();
@@ -64,18 +118,24 @@ const Profile = () => {
           <CardContent>
             <div className="flex items-start gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={profile.profilePictureUrl} alt={profile.firstName} />
+                <AvatarImage
+                  src={profile.profilePictureUrl}
+                  alt={profile.firstName}
+                />
                 <AvatarFallback className="text-lg bg-primary text-primary-foreground">
-                  {profile.firstName[0]}{profile.lastName[0]}
+                  {profile.firstName[0]}
+                  {profile.lastName[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-foreground">
                   {profile.firstName} {profile.lastName}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-3">{profile.email}</p>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {profile.email}
+                </p>
                 <div className="flex items-center gap-2">
-                  {user.hasFolio ? (
+                  {hasFolio ? (
                     <Badge variant="default" className="gap-1">
                       <CheckCircle className="h-3 w-3" />
                       Folio Built
@@ -86,7 +146,7 @@ const Profile = () => {
                       No Folio
                     </Badge>
                   )}
-                  {user.hasAccess ? (
+                  {hasAccess ? (
                     <Badge variant="default" className="gap-1 bg-success">
                       <CheckCircle className="h-3 w-3" />
                       Active Access
@@ -104,7 +164,7 @@ const Profile = () => {
         </Card>
 
         {/* CV Upload Status */}
-        {user.hasFolio && (
+        {hasFolio && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>Your Folio</CardTitle>
@@ -116,13 +176,15 @@ const Profile = () => {
                   <div>
                     <p className="text-sm font-medium">CV Uploaded</p>
                     <p className="text-xs text-muted-foreground">
-                      {user.cvUploaded ? "Your CV is ready" : "No CV uploaded"}
+                      {folio?.cvUrl ? "Your CV is ready" : "No CV uploaded"}
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium mb-2">Selected Industries</p>
+                  <p className="text-sm font-medium mb-2">
+                    Selected Industries
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {folio.industries.map((industry) => (
                       <Badge key={industry} variant="secondary">
@@ -147,13 +209,18 @@ const Profile = () => {
                 <div className="flex items-center gap-3 text-destructive">
                   <XCircle className="h-5 w-5" />
                   <div>
-                    <p className="text-sm font-medium">No Active Subscription</p>
+                    <p className="text-sm font-medium">
+                      No Active Subscription
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       Pay the access fee to view and apply for jobs
                     </p>
                   </div>
                 </div>
-                <Button className="w-full gap-2" onClick={() => navigate("/payment")}>
+                <Button
+                  className="w-full gap-2"
+                  onClick={() => navigate("/payment")}
+                >
                   <CreditCard className="h-4 w-4" />
                   Pay Access Fee
                 </Button>
@@ -177,11 +244,18 @@ const Profile = () => {
                   <div>
                     <p className="text-sm font-medium">Active Subscription</p>
                     <p className="text-xs text-muted-foreground">
-                      Expires on {subscription?.subscriptionEndDate?.toDate().toLocaleDateString()}
+                      Expires on{" "}
+                      {subscription?.subscriptionEndDate
+                        ?.toDate()
+                        .toLocaleDateString()}
                     </p>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full" onClick={() => navigate("/payment")}>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigate("/payment")}
+                >
                   Renew Subscription
                 </Button>
               </div>
@@ -193,7 +267,11 @@ const Profile = () => {
         {!hasFolio && (
           <Card>
             <CardContent className="pt-6">
-              <Button className="w-full" size="lg" onClick={() => navigate("/build-folio")}>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => navigate("/build-folio")}
+              >
                 Build Your Folio
               </Button>
             </CardContent>

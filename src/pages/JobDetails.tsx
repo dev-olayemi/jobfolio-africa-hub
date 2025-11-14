@@ -5,11 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, DollarSign, Building2, Calendar, Mail, Phone, ExternalLink, ArrowLeft } from "lucide-react";
+import {
+  MapPin,
+  DollarSign,
+  Building2,
+  Calendar,
+  Mail,
+  Phone,
+  ExternalLink,
+  ArrowLeft,
+  Heart,
+  Eye,
+  Users,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Job } from "@/lib/firebase-types";
+import {
+  recordJobView,
+  toggleJobLike,
+  hasUserLikedJob,
+  submitJobApplication,
+  hasUserApplied,
+} from "@/lib/jobMetrics";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -26,17 +45,39 @@ const JobDetails = () => {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
 
-  const hasAccess = subscription && (subscription.status === 'trial' || subscription.status === 'active');
+  const hasAccess =
+    subscription &&
+    (subscription.status === "trial" || subscription.status === "active");
 
   useEffect(() => {
     const fetchJob = async () => {
       if (!id) return;
-      
+
       try {
-        const jobDoc = await getDoc(doc(db, 'jobs', id));
+        const jobDoc = await getDoc(doc(db, "jobs", id));
         if (jobDoc.exists()) {
-          setJob({ id: jobDoc.id, ...jobDoc.data() } as Job);
+          const jobData = { id: jobDoc.id, ...jobDoc.data() } as Job;
+          setJob(jobData);
+
+          // Record view
+          await recordJobView(id).catch((err) =>
+            console.error("Failed to record view:", err)
+          );
+
+          // Check if user liked this job
+          if (user?.uid) {
+            const liked = await hasUserLikedJob(id, user.uid);
+            setIsLiked(liked);
+
+            // Check if user already applied
+            const applied = await hasUserApplied(id, user.uid);
+            setHasApplied(applied);
+          }
         } else {
           toast.error("Job not found");
           navigate("/jobs");
@@ -50,20 +91,66 @@ const JobDetails = () => {
     };
 
     fetchJob();
-  }, [id, navigate]);
+  }, [id, navigate, user?.uid]);
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!hasAccess) {
       setShowAccessDialog(true);
       return;
     }
 
-    if (job?.applicationUrl) {
-      window.open(job.applicationUrl, '_blank');
-    } else if (job?.contactEmail) {
-      window.location.href = `mailto:${job.contactEmail}`;
-    } else {
+    if (hasApplied) {
+      toast.info("You have already applied for this job");
+      return;
+    }
+
+    if (!user?.uid || !id) {
+      navigate("/auth");
+      return;
+    }
+
+    setIsApplying(true);
+    try {
+      await submitJobApplication(id, user.uid);
+      setHasApplied(true);
       toast.success("Application submitted successfully!");
+      // Update the apply count in UI
+      if (job) {
+        setJob({ ...job, applies: (job.applies || 0) + 1 });
+      }
+    } catch (error) {
+      console.error("Error applying:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to submit application"
+      );
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleLike = async () => {
+    if (!user?.uid || !id) {
+      navigate("/auth");
+      return;
+    }
+
+    setIsLiking(true);
+    try {
+      const newLikedState = await toggleJobLike(id, user.uid);
+      setIsLiked(newLikedState);
+      // Update the like count in UI
+      if (job) {
+        const newCount = newLikedState
+          ? (job.likes || 0) + 1
+          : Math.max((job.likes || 0) - 1, 0);
+        setJob({ ...job, likes: newCount });
+      }
+      toast.success(newLikedState ? "Added to likes" : "Removed from likes");
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      toast.error("Failed to toggle like");
+    } finally {
+      setIsLiking(false);
     }
   };
 
@@ -109,7 +196,9 @@ const JobDetails = () => {
                 <div className="flex flex-wrap gap-3 text-sm">
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    <span>{job.location}, {job.country}</span>
+                    <span>
+                      {job.location}, {job.country}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <DollarSign className="h-4 w-4" />
@@ -117,13 +206,32 @@ const JobDetails = () => {
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    <span>Posted {job.postedAt.toDate().toLocaleDateString()}</span>
+                    <span>
+                      Posted {job.postedAt.toDate().toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
               </div>
-              <Badge variant="secondary" className="text-base px-3 py-1">
-                {job.category}
-              </Badge>
+              <div className="flex flex-col items-end gap-3">
+                <Badge variant="secondary" className="text-base px-3 py-1">
+                  {job.category}
+                </Badge>
+                {/* Job Metrics */}
+                <div className="flex gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Eye className="h-4 w-4" />
+                    <span>{job.views || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Heart className="h-4 w-4" />
+                    <span>{job.likes || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    <span>{job.applies || 0}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardHeader>
 
@@ -131,8 +239,12 @@ const JobDetails = () => {
             {hasAccess ? (
               <>
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Job Description</h3>
-                  <p className="text-muted-foreground whitespace-pre-line">{job.description}</p>
+                  <h3 className="text-lg font-semibold mb-3">
+                    Job Description
+                  </h3>
+                  <p className="text-muted-foreground whitespace-pre-line">
+                    {job.description}
+                  </p>
                 </div>
 
                 <Separator />
@@ -149,7 +261,9 @@ const JobDetails = () => {
                 <Separator />
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Responsibilities</h3>
+                  <h3 className="text-lg font-semibold mb-3">
+                    Responsibilities
+                  </h3>
                   <ul className="list-disc list-inside space-y-2 text-muted-foreground">
                     {job.responsibilities.map((resp, index) => (
                       <li key={index}>{resp}</li>
@@ -160,12 +274,17 @@ const JobDetails = () => {
                 <Separator />
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
+                  <h3 className="text-lg font-semibold mb-3">
+                    Contact Information
+                  </h3>
                   <div className="space-y-2">
                     {job.contactEmail && (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Mail className="h-4 w-4" />
-                        <a href={`mailto:${job.contactEmail}`} className="hover:text-primary">
+                        <a
+                          href={`mailto:${job.contactEmail}`}
+                          className="hover:text-primary"
+                        >
                           {job.contactEmail}
                         </a>
                       </div>
@@ -173,7 +292,10 @@ const JobDetails = () => {
                     {job.contactPhone && (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Phone className="h-4 w-4" />
-                        <a href={`tel:${job.contactPhone}`} className="hover:text-primary">
+                        <a
+                          href={`tel:${job.contactPhone}`}
+                          className="hover:text-primary"
+                        >
                           {job.contactPhone}
                         </a>
                       </div>
@@ -181,7 +303,12 @@ const JobDetails = () => {
                     {job.applicationUrl && (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <ExternalLink className="h-4 w-4" />
-                        <a href={job.applicationUrl} target="_blank" rel="noopener noreferrer" className="hover:text-primary">
+                        <a
+                          href={job.applicationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-primary"
+                        >
                           Application Link
                         </a>
                       </div>
@@ -189,23 +316,53 @@ const JobDetails = () => {
                   </div>
                 </div>
 
-                <Button onClick={handleApply} size="lg" className="w-full">
-                  Apply Now
-                </Button>
+                <Separator />
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    onClick={handleApply}
+                    size="lg"
+                    className="flex-1"
+                    disabled={isApplying || hasApplied}
+                    variant={hasApplied ? "outline" : "default"}
+                  >
+                    {isApplying
+                      ? "Applying..."
+                      : hasApplied
+                      ? "✓ Already Applied"
+                      : "Apply Now"}
+                  </Button>
+                  <Button
+                    onClick={handleLike}
+                    size="lg"
+                    variant={isLiked ? "default" : "outline"}
+                    disabled={isLiking}
+                    className="gap-2"
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`}
+                    />
+                    {isLiking ? "..." : ""}
+                  </Button>
+                </div>
               </>
             ) : (
               <div className="text-center py-12">
                 <div className="mb-4">
                   <p className="text-lg font-medium mb-2">Access Required</p>
                   <p className="text-muted-foreground">
-                    To view full job details and contact information, you need to build your folio or have an active subscription.
+                    To view full job details and contact information, you need
+                    to build your folio or have an active subscription.
                   </p>
                 </div>
                 <div className="flex gap-3 justify-center flex-wrap">
                   <Button onClick={() => navigate("/build-folio")}>
                     Build Your Folio
                   </Button>
-                  <Button variant="outline" onClick={() => navigate("/profile")}>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/profile")}
+                  >
                     View Profile
                   </Button>
                 </div>
@@ -219,7 +376,8 @@ const JobDetails = () => {
             <DialogHeader>
               <DialogTitle>Access Required</DialogTitle>
               <DialogDescription>
-                To apply for jobs, you need to either build your folio or have an active subscription.
+                To apply for jobs, you need to either build your folio or have
+                an active subscription.
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-3 mt-4">

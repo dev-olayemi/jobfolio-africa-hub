@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from "firebase/firestore";
 
 export interface UserProfile {
   id: string;
@@ -24,7 +24,7 @@ export interface Folio {
 export interface Subscription {
   id: string;
   userId: string;
-  status: 'trial' | 'active' | 'expired' | 'cancelled';
+  status: "trial" | "active" | "expired" | "cancelled";
   trialStartDate?: Timestamp;
   trialEndDate?: Timestamp;
   subscriptionStartDate?: Timestamp;
@@ -52,13 +52,18 @@ export interface Job {
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  // Metrics
+  views?: number;
+  likes?: number;
+  applies?: number;
+  logoUrl?: string;
 }
 
 export interface Application {
   id: string;
   userId: string;
   jobId: string;
-  status: 'pending' | 'reviewed' | 'accepted' | 'rejected';
+  status: "pending" | "reviewed" | "accepted" | "rejected";
   appliedAt: Timestamp;
   reviewedAt?: Timestamp;
   notes?: string;

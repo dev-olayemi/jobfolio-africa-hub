@@ -1,7 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, setDoc, doc, Timestamp } from "firebase/firestore";
 import { storage, db } from "@/lib/firebase";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 const industries = [
   "Technology",
@@ -90,10 +98,41 @@ const BuildFolio = () => {
     setIsSubmitting(true);
 
     try {
-      // Upload CV to Firebase Storage
-      const storageRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
-      await uploadBytes(storageRef, cvFile);
-      const cvUrl = await getDownloadURL(storageRef);
+      // Upload CV - prefer Cloudinary if configured, otherwise Firebase Storage
+      let cvUrl: string;
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+      if (cloudName && uploadPreset) {
+        // Upload to Cloudinary (unsigned preset)
+        try {
+          cvUrl = await uploadToCloudinary(cvFile);
+        } catch (err: any) {
+          // If the preset is missing or Cloudinary rejects the upload, fall back to Firebase Storage
+          const msg = err?.message || String(err);
+          console.error("Cloudinary upload error:", err);
+          if (
+            msg.includes("Upload preset not found") ||
+            msg.includes("preset")
+          ) {
+            toast.error(
+              "Cloudinary preset not found — falling back to Firebase Storage"
+            );
+          } else {
+            toast.error(
+              "Cloudinary upload failed, falling back to Firebase Storage"
+            );
+          }
+          const storageRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
+          await uploadBytes(storageRef, cvFile);
+          cvUrl = await getDownloadURL(storageRef);
+        }
+      } else {
+        // Fallback to Firebase Storage
+        const storageRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
+        await uploadBytes(storageRef, cvFile);
+        cvUrl = await getDownloadURL(storageRef);
+      }
 
       // Create folio document
       const folioData = {
@@ -102,10 +141,10 @@ const BuildFolio = () => {
         cvFileName: cvFile.name,
         industries: selectedIndustries,
         createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
       };
 
-      await addDoc(collection(db, 'folios'), folioData);
+      await addDoc(collection(db, "folios"), folioData);
 
       // Create trial subscription
       const trialStartDate = Timestamp.now();
@@ -114,14 +153,14 @@ const BuildFolio = () => {
 
       const subscriptionData = {
         userId: user.uid,
-        status: 'trial',
+        status: "trial",
         trialStartDate,
         trialEndDate: Timestamp.fromDate(trialEndDate),
         createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
       };
 
-      await setDoc(doc(db, 'subscriptions', user.uid), subscriptionData);
+      await setDoc(doc(db, "subscriptions", user.uid), subscriptionData);
 
       await refreshUserData();
       setIsComplete(true);
@@ -143,21 +182,26 @@ const BuildFolio = () => {
               <div className="mx-auto mb-4 w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
                 <CheckCircle className="h-8 w-8 text-success" />
               </div>
-              <CardTitle className="text-2xl">Folio Created Successfully!</CardTitle>
+              <CardTitle className="text-2xl">
+                Folio Created Successfully!
+              </CardTitle>
               <CardDescription>
-                Your 3-day trial has been activated. Check your email for details.
+                Your 3-day trial has been activated. Check your email for
+                details.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  You can now access job listings and apply to positions that match your selected industries.
+                  You can now access job listings and apply to positions that
+                  match your selected industries.
                 </p>
                 <div className="flex gap-3 justify-center">
-                  <Button onClick={() => navigate("/jobs")}>
-                    Browse Jobs
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate("/profile")}>
+                  <Button onClick={() => navigate("/jobs")}>Browse Jobs</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/profile")}
+                  >
                     View Profile
                   </Button>
                 </div>
@@ -173,7 +217,9 @@ const BuildFolio = () => {
     <Layout>
       <div className="container max-w-2xl mx-auto px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Build Your Folio</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            Build Your Folio
+          </h1>
           <p className="text-sm text-muted-foreground">
             Upload your CV and select your preferred industries to get started
           </p>
@@ -194,7 +240,9 @@ const BuildFolio = () => {
                   <div className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors">
                     <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm font-medium text-foreground">
-                      {cvFile ? cvFile.name : "Click to upload or drag and drop"}
+                      {cvFile
+                        ? cvFile.name
+                        : "Click to upload or drag and drop"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       PDF, DOC, DOCX up to 5MB
@@ -217,7 +265,8 @@ const BuildFolio = () => {
             <CardHeader>
               <CardTitle>Select Industries</CardTitle>
               <CardDescription>
-                Choose 3-4 industries you're interested in. Jobs will be filtered based on your selection.
+                Choose 3-4 industries you're interested in. Jobs will be
+                filtered based on your selection.
               </CardDescription>
             </CardHeader>
             <CardContent>
