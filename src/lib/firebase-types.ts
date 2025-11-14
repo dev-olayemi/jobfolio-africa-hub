@@ -7,8 +7,38 @@ export interface UserProfile {
   lastName: string;
   phoneNumber?: string;
   profilePictureUrl?: string;
+  coverImageUrl?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  linkedIn?: string;
+  twitter?: string;
+  workStatus?: "open" | "not-open" | "employed";
+  title?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface Education {
+  id: string;
+  school: string;
+  degree: string;
+  field: string;
+  startDate: string;
+  endDate?: string;
+  current?: boolean;
+  description?: string;
+}
+
+export interface Experience {
+  id: string;
+  company: string;
+  position: string;
+  location?: string;
+  startDate: string;
+  endDate?: string;
+  current?: boolean;
+  description?: string;
 }
 
 export interface Folio {
@@ -17,6 +47,9 @@ export interface Folio {
   cvUrl: string;
   cvFileName: string;
   industries: string[];
+  skills?: string[];
+  education?: Education[];
+  experience?: Experience[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
