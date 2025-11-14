@@ -466,17 +466,18 @@ const BuildFolio = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {industries.map((industry) => (
+                    {industries.map((industry, index) => (
                       <div
-                        key={industry}
+                        key={`industry-${index}`}
                         className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer"
                         onClick={() => handleIndustryToggle(industry)}
                       >
                         <Checkbox
+                          id={`industry-${index}`}
                           checked={selectedIndustries.includes(industry)}
                           onCheckedChange={() => handleIndustryToggle(industry)}
                         />
-                        <Label className="text-sm font-medium cursor-pointer flex-1">
+                        <Label htmlFor={`industry-${index}`} className="text-sm font-medium cursor-pointer flex-1">
                           {industry}
                         </Label>
                       </div>
