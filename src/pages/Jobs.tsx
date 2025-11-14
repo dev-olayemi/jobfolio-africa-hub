@@ -46,12 +46,24 @@ const Jobs = () => {
   const [loading, setLoading] = useState(true);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<string>(
+    localStorage.getItem("selectedCountry") || ""
+  );
 
   const hasAccess =
     subscription &&
     (subscription.status === "trial" || subscription.status === "active");
 
   useEffect(() => {
+    const onCountryChange = (e: any) => {
+      setSelectedCountry(
+        e?.detail || localStorage.getItem("selectedCountry") || ""
+      );
+    };
+    window.addEventListener("countryChanged", onCountryChange as EventListener);
+    // initialize
+    onCountryChange(null);
+
     const fetchJobs = async () => {
       try {
         let jobsQuery = query(
@@ -61,15 +73,30 @@ const Jobs = () => {
           limit(50)
         );
 
-        // Filter by user's selected industries if they have a folio
-        if (folio && folio.industries.length > 0) {
+        // Filter by country if selected
+        if (selectedCountry) {
           jobsQuery = query(
             collection(db, "jobs"),
             where("isActive", "==", true),
-            where("category", "in", folio.industries),
+            where("country", "==", selectedCountry),
             orderBy("postedAt", "desc"),
             limit(50)
           );
+        }
+
+        // Filter by user's selected industries if they have a folio
+        if (folio && folio.industries.length > 0) {
+          // note: Firestore 'in' queries can't be combined with equality on a different field
+          // For now, prioritize country filtering; if no country filter, apply industries.
+          if (!selectedCountry) {
+            jobsQuery = query(
+              collection(db, "jobs"),
+              where("isActive", "==", true),
+              where("category", "in", folio.industries),
+              orderBy("postedAt", "desc"),
+              limit(50)
+            );
+          }
         }
 
         const querySnapshot = await getDocs(jobsQuery);
@@ -86,7 +113,12 @@ const Jobs = () => {
     };
 
     fetchJobs();
-  }, [folio]);
+    return () =>
+      window.removeEventListener(
+        "countryChanged",
+        onCountryChange as EventListener
+      );
+  }, [folio, selectedCountry]);
 
   const handleJobClick = (jobId: string) => {
     recordJobView(jobId).catch((err) =>
@@ -125,10 +157,11 @@ const Jobs = () => {
       .slice(0, 2);
   };
 
-  const filteredJobs = jobs.filter((job) =>
-    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredJobs = jobs.filter(
+    (job) =>
+      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -172,7 +205,10 @@ const Jobs = () => {
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse border-border/50 shadow-md">
+                <Card
+                  key={i}
+                  className="animate-pulse border-border/50 shadow-md"
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start gap-4">
                       <div className="h-16 w-16 rounded-xl bg-muted" />
@@ -199,7 +235,8 @@ const Jobs = () => {
                 </div>
                 <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
                 <p className="text-muted-foreground">
-                  Try adjusting your search or check back later for new opportunities.
+                  Try adjusting your search or check back later for new
+                  opportunities.
                 </p>
               </CardContent>
             </Card>
@@ -212,7 +249,7 @@ const Jobs = () => {
                   onClick={() => handleJobClick(job.id)}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
+
                   <CardHeader className="pb-3 relative">
                     <div className="flex items-start gap-4">
                       <Avatar className="h-16 w-16 rounded-xl border-2 border-border shadow-sm">
@@ -292,7 +329,8 @@ const Jobs = () => {
           <DialogHeader>
             <DialogTitle>Access Required</DialogTitle>
             <DialogDescription>
-              To apply for jobs, you need to either build your folio or pay the access fee.
+              To apply for jobs, you need to either build your folio or pay the
+              access fee.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 mt-4">

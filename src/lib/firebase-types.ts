@@ -5,6 +5,9 @@ export interface UserProfile {
   email: string;
   firstName: string;
   lastName: string;
+  country?: string;
+  badges?: string[];
+  isAdmin?: boolean;
   phoneNumber?: string;
   profilePictureUrl?: string;
   coverImageUrl?: string;

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,16 +13,52 @@ import {
   CreditCard,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const Profile = () => {
   const navigate = useNavigate();
   const { user, profile, folio, subscription, loading } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [country, setCountry] = useState(profile?.country || "");
+  const [badges, setBadges] = useState<string[]>(profile?.badges || []);
+  const [newBadge, setNewBadge] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    setCountry(profile?.country || "");
+    setBadges(profile?.badges || []);
+  }, [profile]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    try {
+      const profileRef = doc(db, "profiles", user.uid);
+      await updateDoc(profileRef, { country, badges });
+      // trigger refresh
+      window.dispatchEvent(new CustomEvent("refreshUserData"));
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+    }
+  };
+
+  const addBadge = () => {
+    const trimmed = newBadge.trim();
+    if (!trimmed) return;
+    if (badges.length >= 10) return;
+    setBadges([...badges, trimmed]);
+    setNewBadge("");
+  };
+
+  const removeBadge = (b: string) => {
+    setBadges(badges.filter((x) => x !== b));
+  };
 
   if (loading) {
     return (
@@ -134,7 +170,7 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground mb-3">
                   {profile.email}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-2">
                   {hasFolio ? (
                     <Badge variant="default" className="gap-1">
                       <CheckCircle className="h-3 w-3" />
@@ -158,10 +194,85 @@ const Profile = () => {
                     </Badge>
                   )}
                 </div>
+
+                <div className="mb-3">
+                  <div className="text-sm font-medium">Country</div>
+                  {isEditing ? (
+                    <select
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="mt-2 rounded-md border border-input px-3 py-2"
+                    >
+                      <option value="">Select country</option>
+                      {[
+                        "Nigeria",
+                        "Ghana",
+                        "Kenya",
+                        "South Africa",
+                        "Rwanda",
+                        "Tanzania",
+                        "Uganda",
+                        "Ethiopia",
+                        "Zambia",
+                      ].map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {profile.country || "Not set"}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <div className="text-sm font-medium">Badges</div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(badges || []).map((b) => (
+                      <Badge key={b} className="flex items-center gap-2">
+                        {b}
+                        {isEditing && (
+                          <button
+                            onClick={() => removeBadge(b)}
+                            className="ml-2 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                  {isEditing && (
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        value={newBadge}
+                        onChange={(e) => setNewBadge(e.target.value)}
+                        placeholder="Add badge (e.g. Completed Profile)"
+                        className="rounded-md border border-input px-3 py-2 flex-1"
+                      />
+                      <Button onClick={addBadge}>Add</Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        <div className="flex gap-2 mb-6">
+          {isEditing ? (
+            <>
+              <Button onClick={handleSave}>Save</Button>
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+          )}
+        </div>
 
         {/* CV Upload Status */}
         {hasFolio && (

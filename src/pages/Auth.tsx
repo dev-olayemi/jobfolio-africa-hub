@@ -2,7 +2,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +23,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [country, setCountry] = useState<string | undefined>(undefined);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -31,7 +38,7 @@ const Auth = () => {
           setLoading(false);
           return;
         }
-        await signUp(email, password, firstName, lastName);
+        await signUp(email, password, firstName, lastName, country);
         toast.success("Account created successfully!");
         navigate("/");
       } else {
@@ -47,7 +54,10 @@ const Auth = () => {
         toast.error("Password should be at least 6 characters");
       } else if (error.code === "auth/invalid-email") {
         toast.error("Invalid email address");
-      } else if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+      } else if (
+        error.code === "auth/user-not-found" ||
+        error.code === "auth/wrong-password"
+      ) {
         toast.error("Invalid email or password");
       } else {
         toast.error(error.message || "Authentication failed");
@@ -92,6 +102,33 @@ const Auth = () => {
                       onChange={(e) => setLastName(e.target.value)}
                       required
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Country</Label>
+                    <select
+                      id="country"
+                      className="w-full rounded-md border border-input px-3 py-2"
+                      value={country || ""}
+                      onChange={(e) => setCountry(e.target.value || undefined)}
+                      required
+                    >
+                      <option value="">Select your country</option>
+                      {[
+                        "Nigeria",
+                        "Ghana",
+                        "Kenya",
+                        "South Africa",
+                        "Rwanda",
+                        "Tanzania",
+                        "Uganda",
+                        "Ethiopia",
+                        "Zambia",
+                      ].map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </>
               )}

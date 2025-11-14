@@ -39,7 +39,8 @@ interface AuthContextType {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    country?: string
   ) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -181,7 +182,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    country?: string
   ) => {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -198,6 +200,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email,
       firstName,
       lastName,
+      country: country || undefined,
+      badges: [],
+      isAdmin: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
