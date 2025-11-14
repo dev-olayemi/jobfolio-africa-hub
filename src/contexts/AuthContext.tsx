@@ -11,6 +11,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
@@ -150,19 +152,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        await fetchUserData(user.uid);
-      } else {
-        setProfile(null);
-        setFolio(null);
-        setSubscription(null);
+    // Configure persistence so users remain signed in across browser restarts
+    // Default persistence is `local` which preserves the session until sign-out.
+    // We also support an optional expiry window via `VITE_AUTH_EXPIRE_HOURS`.
+    (async () => {
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (err) {
+        console.warn("Failed to set auth persistence:", err);
       }
-      setLoading(false);
-    });
 
-    return unsubscribe;
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        setUser(user);
+
+        // If the user is signed in, check stored timestamp to optionally expire session
+        if (user) {
+          try {
+            const expiryHours =
+              Number(import.meta.env.VITE_AUTH_EXPIRE_HOURS) || 168; // default 7 days
+            const expiryMs = expiryHours * 60 * 60 * 1000;
+            const lastSignInTs = Number(
+              localStorage.getItem("jobfolio_last_signin") || "0"
+            );
+
+            if (lastSignInTs && Date.now() - lastSignInTs > expiryMs) {
+              // Session expired according to configured window
+              await signOut(auth);
+              localStorage.removeItem("jobfolio_last_signin");
+              setProfile(null);
+              setFolio(null);
+              setSubscription(null);
+              setLoading(false);
+              // Don't fetch user data after expiring
+              return;
+            }
+
+            await fetchUserData(user.uid);
+          } catch (err) {
+            console.error("Error during auth state handling:", err);
+          }
+        } else {
+          setProfile(null);
+          setFolio(null);
+          setSubscription(null);
+        }
+        setLoading(false);
+      });
+
+      return unsubscribe;
+    })();
   }, []);
 
   // Listen for external retry requests (Profile page Retry button sends this)
@@ -208,10 +246,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     await setDoc(doc(db, "profiles", user.uid), profileData);
+    // Remember sign-in time for session expiry checks
+    try {
+      localStorage.setItem("jobfolio_last_signin", String(Date.now()));
+    } catch (err) {
+      /* ignore storage errors */
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    try {
+      localStorage.setItem("jobfolio_last_signin", String(Date.now()));
+    } catch (err) {
+      /* ignore storage errors */
+    }
+    return cred;
   };
 
   const logout = async () => {
