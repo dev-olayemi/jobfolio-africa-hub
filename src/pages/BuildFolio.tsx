@@ -919,7 +919,10 @@ const BuildFolio = () => {
                       </Label>
                       <div className="flex flex-wrap gap-2">
                         {skills.map((skill, index) => (
-                          <Badge key={`review-skill-${index}-${skill}`} variant="secondary">
+                          <Badge
+                            key={`review-skill-${index}-${skill}`}
+                            variant="secondary"
+                          >
                             {skill}
                           </Badge>
                         ))}
