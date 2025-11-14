@@ -28,8 +28,10 @@ const BADGE_DEFINITIONS = [
     description: "Just joined JobFolio",
     condition: (profile: any) => {
       if (!profile?.createdAt) return false;
-      const createdDate = profile.createdAt.toDate?.() || new Date(profile.createdAt);
-      const daysSinceCreation = (new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+      const createdDate =
+        profile.createdAt.toDate?.() || new Date(profile.createdAt);
+      const daysSinceCreation =
+        (new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
       return daysSinceCreation <= 7;
     },
   },
@@ -51,8 +53,10 @@ const BADGE_DEFINITIONS = [
     description: "Member for over a year",
     condition: (profile: any) => {
       if (!profile?.createdAt) return false;
-      const createdDate = profile.createdAt.toDate?.() || new Date(profile.createdAt);
-      const daysSinceCreation = (new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+      const createdDate =
+        profile.createdAt.toDate?.() || new Date(profile.createdAt);
+      const daysSinceCreation =
+        (new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
       return daysSinceCreation >= 365;
     },
   },
@@ -201,7 +205,9 @@ const Profile = () => {
   const getTrialDaysLeft = () => {
     if (subscription?.status === "trial" && subscription.trialEndDate) {
       const now = new Date();
-      const endDate = subscription.trialEndDate.toDate?.() || new Date(subscription.trialEndDate);
+      const endDate =
+        subscription.trialEndDate.toDate?.() ||
+        new Date(subscription.trialEndDate);
       const diffTime = endDate.getTime() - now.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays > 0 ? diffDays : 0;
@@ -359,7 +365,9 @@ const Profile = () => {
                           key={badge.id}
                           className="flex items-start gap-3 p-3 bg-muted/50 rounded-md"
                         >
-                          <div className="text-xl flex-shrink-0">{badge.name.split(" ")[0]}</div>
+                          <div className="text-xl flex-shrink-0">
+                            {badge.name.split(" ")[0]}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground">
                               {badge.name}
@@ -523,7 +531,9 @@ const Profile = () => {
                         {subscription?.subscriptionEndDate
                           ?.toDate?.()
                           .toLocaleDateString?.() ||
-                          new Date(subscription?.subscriptionEndDate).toLocaleDateString?.()}
+                          new Date(
+                            subscription?.subscriptionEndDate
+                          ).toLocaleDateString?.()}
                       </p>
                     </div>
                     <Button

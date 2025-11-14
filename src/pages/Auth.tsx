@@ -199,7 +199,9 @@ const Auth = () => {
                       <div className="relative">
                         <button
                           type="button"
-                          onClick={() => setShowCountryPicker(!showCountryPicker)}
+                          onClick={() =>
+                            setShowCountryPicker(!showCountryPicker)
+                          }
                           className="w-full rounded-md border border-input px-3 py-2 bg-background text-left text-sm hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
                         >
                           {country ? (
