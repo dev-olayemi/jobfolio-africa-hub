@@ -477,7 +477,10 @@ const BuildFolio = () => {
                           checked={selectedIndustries.includes(industry)}
                           onCheckedChange={() => handleIndustryToggle(industry)}
                         />
-                        <Label htmlFor={`industry-${index}`} className="text-sm font-medium cursor-pointer flex-1">
+                        <Label
+                          htmlFor={`industry-${index}`}
+                          className="text-sm font-medium cursor-pointer flex-1"
+                        >
                           {industry}
                         </Label>
                       </div>
