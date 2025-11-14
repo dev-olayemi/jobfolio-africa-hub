@@ -45,6 +45,7 @@ const industries = [
 ];
 
 interface EducationEntry {
+  id?: string;
   school: string;
   degree: string;
   field: string;
@@ -55,6 +56,7 @@ interface EducationEntry {
 }
 
 interface ExperienceEntry {
+  id?: string;
   company: string;
   position: string;
   location?: string;
@@ -141,12 +143,16 @@ const BuildFolio = () => {
       toast.error("Maximum 20 skills allowed");
       return;
     }
+    if (skills.includes(trimmed)) {
+      toast.error("This skill is already added");
+      return;
+    }
     setSkills([...skills, trimmed]);
     setNewSkill("");
   };
 
-  const removeSkill = (skill: string) => {
-    setSkills(skills.filter((s) => s !== skill));
+  const removeSkill = (index: number) => {
+    setSkills(skills.filter((_, i) => i !== index));
   };
 
   // Education
@@ -160,7 +166,10 @@ const BuildFolio = () => {
       toast.error("Please fill in all required fields");
       return;
     }
-    setEducation([...education, educationForm]);
+    setEducation([
+      ...education,
+      { ...educationForm, id: Math.random().toString(36).substr(2, 9) },
+    ]);
     setEducationForm({
       school: "",
       degree: "",
@@ -173,8 +182,8 @@ const BuildFolio = () => {
     toast.success("Education added");
   };
 
-  const removeEducation = (index: number) => {
-    setEducation(education.filter((_, i) => i !== index));
+  const removeEducation = (id: string) => {
+    setEducation(education.filter((e) => e.id !== id));
   };
 
   // Experience
@@ -187,7 +196,10 @@ const BuildFolio = () => {
       toast.error("Please fill in all required fields");
       return;
     }
-    setExperience([...experience, experienceForm]);
+    setExperience([
+      ...experience,
+      { ...experienceForm, id: Math.random().toString(36).substr(2, 9) },
+    ]);
     setExperienceForm({
       company: "",
       position: "",
@@ -200,8 +212,8 @@ const BuildFolio = () => {
     toast.success("Experience added");
   };
 
-  const removeExperience = (index: number) => {
-    setExperience(experience.filter((_, i) => i !== index));
+  const removeExperience = (id: string) => {
+    setExperience(experience.filter((e) => e.id !== id));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,8 +230,8 @@ const BuildFolio = () => {
       return;
     }
 
-    if (selectedIndustries.length < 3) {
-      toast.error("Please select at least 3 industries");
+    if (selectedIndustries.length < 1) {
+      toast.error("Please select at least 1 industry");
       return;
     }
 
@@ -449,7 +461,7 @@ const BuildFolio = () => {
                 <CardHeader>
                   <CardTitle>Select Industries</CardTitle>
                   <CardDescription>
-                    Choose 3-4 industries you're interested in
+                    Choose at least 1 industry (up to 4)
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -471,7 +483,8 @@ const BuildFolio = () => {
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground mt-4">
-                    Selected: {selectedIndustries.length} / 4
+                    Selected: {selectedIndustries.length} / 4{" "}
+                    {selectedIndustries.length === 0 && "(Required)"}
                   </p>
                 </CardContent>
               </Card>
@@ -484,7 +497,7 @@ const BuildFolio = () => {
               <CardHeader>
                 <CardTitle>Add Your Skills</CardTitle>
                 <CardDescription>
-                  List your professional skills (up to 20)
+                  List your professional skills (optional, up to 20)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -508,19 +521,19 @@ const BuildFolio = () => {
                 {skills.length > 0 && (
                   <div>
                     <Label className="text-sm font-medium mb-2 block">
-                      Your Skills
+                      Your Skills ({skills.length})
                     </Label>
                     <div className="flex flex-wrap gap-2">
-                      {skills.map((skill) => (
+                      {skills.map((skill, index) => (
                         <Badge
-                          key={skill}
+                          key={`skill-${index}-${skill}`}
                           variant="secondary"
                           className="gap-2"
                         >
                           {skill}
                           <button
                             type="button"
-                            onClick={() => removeSkill(skill)}
+                            onClick={() => removeSkill(index)}
                             className="hover:opacity-70"
                           >
                             <X className="h-3 w-3" />
@@ -541,7 +554,7 @@ const BuildFolio = () => {
                 <CardHeader>
                   <CardTitle>Add Education</CardTitle>
                   <CardDescription>
-                    Share your academic background and qualifications
+                    Share your academic background and qualifications (optional)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -667,9 +680,9 @@ const BuildFolio = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {education.map((edu, index) => (
+                    {education.map((edu) => (
                       <div
-                        key={index}
+                        key={edu.id}
                         className="p-3 border border-border rounded-lg flex justify-between items-start"
                       >
                         <div className="flex-1">
@@ -688,7 +701,7 @@ const BuildFolio = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeEducation(index)}
+                          onClick={() => removeEducation(edu.id!)}
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -707,7 +720,7 @@ const BuildFolio = () => {
                 <CardHeader>
                   <CardTitle>Add Work Experience</CardTitle>
                   <CardDescription>
-                    Share your professional work history
+                    Share your professional work history (optional)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -833,9 +846,9 @@ const BuildFolio = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {experience.map((exp, index) => (
+                    {experience.map((exp) => (
                       <div
-                        key={index}
+                        key={exp.id}
                         className="p-3 border border-border rounded-lg flex justify-between items-start"
                       >
                         <div className="flex-1">
@@ -856,7 +869,7 @@ const BuildFolio = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeExperience(index)}
+                          onClick={() => removeExperience(exp.id!)}
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -905,8 +918,8 @@ const BuildFolio = () => {
                         Skills ({skills.length})
                       </Label>
                       <div className="flex flex-wrap gap-2">
-                        {skills.map((skill) => (
-                          <Badge key={skill} variant="secondary">
+                        {skills.map((skill, index) => (
+                          <Badge key={`review-skill-${index}-${skill}`} variant="secondary">
                             {skill}
                           </Badge>
                         ))}
@@ -920,9 +933,9 @@ const BuildFolio = () => {
                         Education ({education.length})
                       </Label>
                       <div className="space-y-2">
-                        {education.map((edu, index) => (
+                        {education.map((edu) => (
                           <div
-                            key={index}
+                            key={edu.id}
                             className="text-sm text-muted-foreground"
                           >
                             • {edu.degree} in {edu.field} from {edu.school}
@@ -938,9 +951,9 @@ const BuildFolio = () => {
                         Experience ({experience.length})
                       </Label>
                       <div className="space-y-2">
-                        {experience.map((exp, index) => (
+                        {experience.map((exp) => (
                           <div
-                            key={index}
+                            key={exp.id}
                             className="text-sm text-muted-foreground"
                           >
                             • {exp.position} at {exp.company}
@@ -974,7 +987,7 @@ const BuildFolio = () => {
                 className="gap-2"
                 disabled={
                   currentStep === 1 &&
-                  (!cvFile || selectedIndustries.length < 3)
+                  (!cvFile || selectedIndustries.length < 1)
                 }
               >
                 Next
