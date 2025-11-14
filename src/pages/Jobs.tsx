@@ -2,14 +2,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   MapPin,
   DollarSign,
@@ -18,6 +15,9 @@ import {
   Eye,
   Heart,
   Users,
+  Search,
+  Filter,
+  Briefcase,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -45,6 +45,7 @@ const Jobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const hasAccess =
     subscription &&
@@ -124,178 +125,201 @@ const Jobs = () => {
       .slice(0, 2);
   };
 
+  const filteredJobs = jobs.filter((job) =>
+    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    job.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Layout>
-      <div className="container max-w-5xl mx-auto px-4 py-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Available Jobs
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {jobs.length} job opportunities across Africa
-          </p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background">
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          {/* Header Section */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
+                <Briefcase className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Discover Jobs
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {filteredJobs.length} opportunities waiting for you
+                </p>
+              </div>
+            </div>
 
-        {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader className="pb-3">
-                  <div className="h-6 bg-muted rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-muted rounded w-1/2"></div>
-                </CardHeader>
-                <CardContent className="pb-3">
-                  <div className="h-4 bg-muted rounded w-full"></div>
-                </CardContent>
-              </Card>
-            ))}
+            {/* Search and Filter Bar */}
+            <div className="flex gap-3 mt-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search jobs, companies, or categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-12 bg-card border-border/50 shadow-sm"
+                />
+              </div>
+              <Button variant="outline" size="lg" className="gap-2 shadow-sm">
+                <Filter className="h-4 w-4" />
+                Filters
+              </Button>
+            </div>
           </div>
-        ) : jobs.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                No jobs available at the moment. Check back later!
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {jobs.map((job) => (
-              <Card
-                key={job.id}
-                className="hover:shadow-lg transition-all hover:border-primary/50 cursor-pointer"
-                onClick={() => handleJobClick(job.id)}
-              >
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex gap-4 flex-1">
-                      {/* Company Logo */}
-                      <div className="flex-shrink-0">
-                        {job.logoUrl ? (
-                          <img
-                            src={job.logoUrl}
-                            alt={job.company}
-                            className="w-12 h-12 rounded-lg object-cover bg-muted"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                        ) : null}
-                        {!job.logoUrl ||
-                          (typeof job.logoUrl !== "string" && (
-                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-sm font-bold text-primary-foreground">
-                              {getInitials(job.company)}
-                            </div>
-                          ))}
-                      </div>
 
-                      {/* Job Details */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-foreground mb-1 truncate">
-                          {job.title}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                          <Building2 className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{job.company}</span>
-                          {job.country && (
-                            <>
-                              <span>•</span>
-                              <span>{job.country}</span>
-                            </>
-                          )}
-                        </div>
-                        <Badge variant="secondary" className="text-xs">
-                          {job.category}
-                        </Badge>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="animate-pulse border-border/50 shadow-md">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start gap-4">
+                      <div className="h-16 w-16 rounded-xl bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-5 bg-muted rounded w-3/4" />
+                        <div className="h-4 bg-muted rounded w-1/2" />
                       </div>
                     </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="h-4 bg-muted rounded w-full" />
+                      <div className="h-4 bg-muted rounded w-2/3" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : filteredJobs.length === 0 ? (
+            <Card className="text-center py-16 border-border/50 shadow-md">
+              <CardContent>
+                <div className="h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                  <Briefcase className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
+                <p className="text-muted-foreground">
+                  Try adjusting your search or check back later for new opportunities.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredJobs.map((job) => (
+                <Card
+                  key={job.id}
+                  className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-border/50 hover:border-primary/50 hover:-translate-y-1 bg-card overflow-hidden"
+                  onClick={() => handleJobClick(job.id)}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  <CardHeader className="pb-3 relative">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="h-16 w-16 rounded-xl border-2 border-border shadow-sm">
+                        <AvatarImage src={job.logoUrl} alt={job.company} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-lg font-semibold rounded-xl">
+                          {getInitials(job.company)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                          {job.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                          <Building2 className="h-3.5 w-3.5" />
+                          {job.company}
+                        </p>
+                      </div>
+                    </div>
+                  </CardHeader>
 
-                    {/* Right side - Salary */}
-                    <div className="flex-shrink-0 text-right">
-                      <div className="flex items-center gap-1 text-sm font-medium text-foreground justify-end mb-1">
+                  <CardContent className="space-y-4 relative">
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span className="line-clamp-1">{job.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-success font-semibold">
                         <DollarSign className="h-4 w-4" />
                         <span>{job.salary}</span>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
 
-                <CardContent className="pb-3 px-4">
-                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      <span>{job.location}</span>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="secondary" className="rounded-full px-3">
+                        {job.category}
+                      </Badge>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        {getDaysAgo(job.postedAt)}d ago
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      <span>
-                        {getDaysAgo(job.postedAt)} day
-                        {getDaysAgo(job.postedAt) > 1 ? "s" : ""} ago
-                      </span>
+
+                    {/* Metrics */}
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/50">
+                      <div className="flex items-center gap-1.5">
+                        <Eye className="h-3.5 w-3.5" />
+                        <span>{job.views || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Heart className="h-3.5 w-3.5" />
+                        <span>{job.likes || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5" />
+                        <span>{job.applies || 0} applied</span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
 
-                <CardFooter className="pt-0 px-4 pb-4 flex items-center justify-between">
-                  {/* Metrics */}
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    {job.views !== undefined && (
-                      <div className="flex items-center gap-1">
-                        <Eye className="h-4 w-4" />
-                        <span>{job.views} views</span>
-                      </div>
-                    )}
-                    {job.likes !== undefined && (
-                      <div className="flex items-center gap-1">
-                        <Heart className="h-4 w-4" />
-                        <span>{job.likes} likes</span>
-                      </div>
-                    )}
-                    {job.applies !== undefined && (
-                      <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        <span>{job.applies} applied</span>
-                      </div>
-                    )}
-                  </div>
+                    <Button
+                      onClick={(e) => handleApplyClick(e, job.id)}
+                      className="w-full mt-2 shadow-sm hover:shadow-md transition-shadow"
+                      size="lg"
+                    >
+                      {hasAccess ? "Apply Now" : "View Details"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-                  {/* Apply Button */}
-                  <Button
-                    onClick={(e) => handleApplyClick(e, job.id)}
-                    size="sm"
-                    variant="default"
-                  >
-                    {hasAccess ? "Apply" : "Details"}
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        <Dialog open={showAccessDialog} onOpenChange={setShowAccessDialog}>
-          <DialogContent className="bg-card">
-            <DialogHeader>
-              <DialogTitle>Access Required</DialogTitle>
-              <DialogDescription>
-                To view full job details and apply, you need to either build
-                your folio or grant access.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-3 mt-4">
-              <Button onClick={() => (window.location.href = "/build-folio")}>
+      {/* Access Required Dialog */}
+      <Dialog open={showAccessDialog} onOpenChange={setShowAccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Access Required</DialogTitle>
+            <DialogDescription>
+              To apply for jobs, you need to either build your folio or pay the access fee.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            {!folio && (
+              <Button
+                onClick={() => {
+                  setShowAccessDialog(false);
+                  navigate("/build-folio");
+                }}
+                size="lg"
+              >
                 Build Your Folio
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => (window.location.href = "/profile")}
-              >
-                Grant Access (Pay Fee)
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            )}
+            <Button
+              onClick={() => {
+                setShowAccessDialog(false);
+                navigate("/payment");
+              }}
+              variant="outline"
+              size="lg"
+            >
+              Pay Access Fee
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
