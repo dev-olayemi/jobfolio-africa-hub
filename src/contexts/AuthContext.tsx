@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import {
@@ -68,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = useCallback(async (userId: string) => {
     try {
       setFetchError(null);
       // Fetch profile
@@ -143,7 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         toast.error(error?.message || "Failed to fetch user data");
       }
     }
-  };
+  }, []);
 
   const refreshUserData = async () => {
     if (user) {
@@ -155,6 +156,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Configure persistence so users remain signed in across browser restarts
     // Default persistence is `local` which preserves the session until sign-out.
     // We also support an optional expiry window via `VITE_AUTH_EXPIRE_HOURS`.
+    let unsubscribe: (() => void) | undefined;
+
     (async () => {
       try {
         await setPersistence(auth, browserLocalPersistence);
@@ -162,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn("Failed to set auth persistence:", err);
       }
 
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      unsubscribe = onAuthStateChanged(auth, async (user) => {
         setUser(user);
 
         // If the user is signed in, check stored timestamp to optionally expire session
@@ -188,19 +191,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             await fetchUserData(user.uid);
+            setLoading(false);
           } catch (err) {
             console.error("Error during auth state handling:", err);
+            setLoading(false);
           }
         } else {
           setProfile(null);
           setFolio(null);
           setSubscription(null);
+          setLoading(false);
         }
-        setLoading(false);
       });
-
-      return unsubscribe;
     })();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   // Listen for external retry requests (Profile page Retry button sends this)
