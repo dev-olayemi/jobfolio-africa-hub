@@ -245,12 +245,12 @@ const JobDetails = () => {
                 </Button>
               </div>
 
-              <div className="flex items-center gap-3 mt-6">
+              <div className="flex flex-col gap-3 mt-6">
                 <Button
                   onClick={handleApply}
                   disabled={isApplying || hasApplied}
                   size="lg"
-                  className="flex-1 shadow-lg"
+                  className="w-full shadow-lg bg-gradient-to-r from-primary to-accent hover:opacity-90"
                 >
                   {hasApplied ? (
                     <>
@@ -263,6 +263,17 @@ const JobDetails = () => {
                       Apply Now
                     </>
                   )}
+                </Button>
+                
+                {/* CV Refining Feature */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full border-primary/30 hover:bg-primary/10"
+                  onClick={() => toast.info("CV Refining: Optimize your CV for this specific job for ₦1,000 to increase your chances! Feature coming soon.")}
+                >
+                  <span className="mr-2">✨</span>
+                  Refine My CV - ₦1,000
                 </Button>
               </div>
 

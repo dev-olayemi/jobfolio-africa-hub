@@ -292,20 +292,10 @@ const Jobs = () => {
                       </div>
                     </div>
 
-                    {/* Metrics */}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/50">
-                      <div className="flex items-center gap-1.5">
-                        <Eye className="h-3.5 w-3.5" />
-                        <span>{job.views || 0}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Heart className="h-3.5 w-3.5" />
-                        <span>{job.likes || 0}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5" />
-                        <span>{job.applies || 0} applied</span>
-                      </div>
+                    {/* Metrics - Only show date posted */}
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2 border-t border-border/50">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>Posted {getDaysAgo(job.postedAt)}d ago</span>
                     </div>
 
                     <Button
