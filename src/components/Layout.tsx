@@ -14,6 +14,7 @@ import {
   Mail,
   Lock,
   Grid3x3,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -23,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import logoImage from "@/assets/jobfolio-logo.jpg";
 
@@ -80,61 +82,137 @@ export const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Top Toolbar */}
-      <header className="h-16 border-b border-border bg-gradient-to-r from-card to-card/80 flex items-center justify-between px-3 md:px-4 sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
-          <img
-            src={logoImage}
-            alt="JobFolio"
-            className="h-9 md:h-10 rounded-md flex-shrink-0"
-          />
-          <div className="hidden sm:block min-w-0">
-            <div className="text-base md:text-lg font-bold text-foreground truncate">
+      {/* Top Toolbar - Redesigned */}
+      <header className="h-20 border-b border-border bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 lg:px-8 sticky top-0 z-50 shadow-lg">
+        {/* Left: Ad Banner Space */}
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-4 border-primary/20 shadow-xl hover:scale-105 transition-transform cursor-pointer bg-gradient-to-br from-primary to-accent">
+            <img
+              src={logoImage}
+              alt="Ad Banner"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+          </div>
+          <div className="hidden md:block">
+            <div className="text-lg font-bold text-foreground">
               JobFolio Africa
             </div>
-            <div className="text-xs text-muted-foreground hidden md:block">
-              Find jobs in your country
+            <div className="text-xs text-muted-foreground">
+              Find your dream job
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-          {/* Country selector - mobile compact */}
-          <div className="flex items-center gap-1 md:gap-2">
-            <label className="text-xs md:text-sm text-muted-foreground hidden sm:block">
-              Country
-            </label>
-            <select
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="rounded-md border border-input px-2 py-1 text-xs md:text-sm bg-card focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {countries.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Center: Country Selector - PROMINENT */}
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border-2 border-primary/20 shadow-md hover:border-primary/40 transition-all">
+          <Globe className="h-5 w-5 text-primary flex-shrink-0" />
+          <select
+            value={selectedCountry}
+            onChange={(e) => setSelectedCountry(e.target.value)}
+            className="bg-transparent text-sm md:text-base font-semibold text-foreground focus:outline-none cursor-pointer min-w-[120px]"
+          >
+            {countries.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          {/* Search - hidden on mobile */}
-          <div className="hidden lg:block">
-            <input
-              type="search"
-              placeholder="Search jobs, companies..."
-              className="px-3 py-1.5 rounded-md border border-input w-56 bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+        {/* Right: User Section */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {user ? (
+            <>
+              {/* Desktop User Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="hidden md:flex items-center gap-2 h-auto py-2 px-3 hover:bg-primary/10"
+                  >
+                    <img
+                      src={profile?.profilePictureUrl}
+                      alt="avatar"
+                      className="h-9 w-9 rounded-full object-cover border-2 border-primary/30"
+                    />
+                    <div className="hidden lg:flex flex-col items-start">
+                      <span className="text-sm font-semibold">
+                        {profile?.firstName} {profile?.lastName}
+                      </span>
+                      {profile?.badges && profile.badges.length > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {profile.badges[0]}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <User className="h-4 w-4 mr-2" />
+                    Profile
+                  </DropdownMenuItem>
+                  {profile?.isAdmin || profile?.email === "alice@example.com" ? (
+                    <DropdownMenuItem onClick={() => navigate("/admin/jobs")}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Admin Jobs
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-destructive"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          {/* Menu Trigger - mobile visible, hidden on desktop */}
+              {/* Mobile User Avatar */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={() => navigate("/profile")}
+              >
+                <img
+                  src={profile?.profilePictureUrl}
+                  alt="avatar"
+                  className="h-9 w-9 rounded-full object-cover border-2 border-primary/30"
+                />
+              </Button>
+            </>
+          ) : (
+            <div className="hidden sm:flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/auth")}
+                className="font-semibold"
+              >
+                Sign In
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate("/auth")}
+                className="font-semibold bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              >
+                Sign Up
+              </Button>
+            </div>
+          )}
+
+          {/* Menu Trigger */}
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 md:h-10 md:w-10"
+                className="h-10 w-10"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
             <SheetContent
@@ -229,67 +307,6 @@ export const Layout = ({ children }: LayoutProps) => {
               </div>
             </SheetContent>
           </Sheet>
-
-          {/* User summary on desktop - hidden on mobile */}
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="hidden md:flex items-center gap-2 h-9"
-                >
-                  <img
-                    src={profile?.profilePictureUrl}
-                    alt="avatar"
-                    className="h-7 w-7 rounded-full object-cover"
-                  />
-                  <div className="hidden lg:flex flex-col items-start">
-                    <span className="text-xs md:text-sm font-medium">
-                      {profile?.firstName}
-                    </span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => navigate("/profile")}>
-                  <User className="h-4 w-4 mr-2" />
-                  Profile
-                </DropdownMenuItem>
-                {profile?.isAdmin || profile?.email === "alice@example.com" ? (
-                  <DropdownMenuItem onClick={() => navigate("/admin/jobs")}>
-                    <Settings className="h-4 w-4 mr-2" />
-                    Admin Jobs
-                  </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-destructive"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <div className="hidden sm:flex gap-2 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/auth")}
-                className="text-xs md:text-sm"
-              >
-                Sign In
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => navigate("/auth")}
-                className="text-xs md:text-sm"
-              >
-                Sign Up
-              </Button>
-            </div>
-          )}
         </div>
       </header>
 

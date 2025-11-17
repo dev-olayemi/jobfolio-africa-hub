@@ -205,9 +205,9 @@ const Profile = () => {
   const getTrialDaysLeft = () => {
     if (subscription?.status === "trial" && subscription.trialEndDate) {
       const now = new Date();
-      const endDate =
-        subscription.trialEndDate.toDate?.() ||
-        new Date(subscription.trialEndDate);
+      const endDate = subscription.trialEndDate.toDate
+        ? subscription.trialEndDate.toDate()
+        : new Date(subscription.trialEndDate.seconds * 1000);
       const diffTime = endDate.getTime() - now.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays > 0 ? diffDays : 0;
@@ -528,12 +528,11 @@ const Profile = () => {
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Until{" "}
-                        {subscription?.subscriptionEndDate
-                          ?.toDate?.()
-                          .toLocaleDateString?.() ||
-                          new Date(
-                            subscription?.subscriptionEndDate
-                          ).toLocaleDateString?.()}
+                        {subscription?.subscriptionEndDate?.toDate
+                          ? subscription.subscriptionEndDate.toDate().toLocaleDateString()
+                          : new Date(
+                              subscription?.subscriptionEndDate?.seconds * 1000
+                            ).toLocaleDateString()}
                       </p>
                     </div>
                     <Button
