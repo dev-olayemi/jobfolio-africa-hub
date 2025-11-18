@@ -46,7 +46,6 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
-    "filestack-react": "^4.1.1",
     "firebase": "^12.5.0",
     "firebase-admin": "^13.6.0",
     "input-otp": "^1.4.2",
