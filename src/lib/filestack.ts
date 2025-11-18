@@ -99,48 +99,56 @@ function openFilestackPicker(): Promise<FilestackResponse | null> {
         maxSize: 5242880, // 5MB
         maxFiles: 1,
         disableTransformer: false,
-        fromSources: ["local_file_system", "url"],
+        fromSources: ["local_file_system"],
+        // Use the newer callback format
+        onUploadDone: (result: any) => {
+          console.log("Upload done result:", result);
+
+          if (
+            result &&
+            result.filesUploaded &&
+            result.filesUploaded.length > 0
+          ) {
+            const file = result.filesUploaded[0];
+            const response: FilestackResponse = {
+              handle: file.handle,
+              url: file.url,
+              size: file.size,
+              type: file.mimetype || file.type,
+              filename: file.filename,
+              uploadId: file.uploadId,
+              mimetype: file.mimetype,
+            };
+            console.log("Resolving with:", response);
+            resolve(response);
+          } else if (
+            result &&
+            result.filesFailed &&
+            result.filesFailed.length > 0
+          ) {
+            const error = result.filesFailed[0];
+            reject(new Error(`Upload failed: ${error.name}`));
+          } else {
+            reject(new Error("No file uploaded"));
+          }
+        },
+        onCancel: () => {
+          console.log("Picker cancelled");
+          resolve(null); // User cancelled, return null
+        },
+        onError: (error: any) => {
+          console.error("Picker error:", error);
+          reject(
+            new Error(`Picker error: ${error.message || JSON.stringify(error)}`)
+          );
+        },
       };
 
+      console.log("Opening picker with options:", pickerOptions);
       const picker = client.picker(pickerOptions);
-
       picker.open();
-
-      // Handle file selection completion
-      picker.on("onUploadDone", (result: any) => {
-        console.log("Upload result:", result);
-
-        if (result && result.filesUploaded && result.filesUploaded.length > 0) {
-          const file = result.filesUploaded[0];
-          const response: FilestackResponse = {
-            handle: file.handle,
-            url: file.url,
-            size: file.size,
-            type: file.mimetype || file.type,
-            filename: file.filename,
-            uploadId: file.uploadId,
-            mimetype: file.mimetype,
-          };
-          resolve(response);
-        } else if (
-          result &&
-          result.filesFailed &&
-          result.filesFailed.length > 0
-        ) {
-          reject(new Error("Upload failed: " + result.filesFailed[0].name));
-        } else {
-          reject(new Error("No file uploaded"));
-        }
-      });
-
-      picker.on("onCancel", () => {
-        resolve(null); // User cancelled, return null
-      });
-
-      picker.on("onError", (error: any) => {
-        reject(new Error("Picker error: " + (error.message || error)));
-      });
     } catch (error) {
+      console.error("Error in openFilestackPicker:", error);
       reject(error);
     }
   });
