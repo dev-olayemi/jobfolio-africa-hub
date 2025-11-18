@@ -89,13 +89,13 @@ export const Layout = ({ children }: LayoutProps) => {
           className="flex items-center gap-4 flex-shrink-0 cursor-pointer group"
           onClick={() => navigate("/")}
         >
-          <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-4 border-primary/80 shadow-2xl group-hover:shadow-primary/40 group-hover:scale-110 transition-all bg-gradient-to-br from-primary to-accent ring-2 ring-primary/20">
+          <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shadow-2xl group-hover:shadow-primary/40 group-hover:scale-110 transition-all bg-white">
             <img
               src={logoImage}
               alt="JobFolio Africa"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-fill"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/10" />
+            <div className="absolute inset-0" />
           </div>
           <div className="hidden md:block">
             <div className="text-xl font-black text-foreground tracking-tight leading-tight">
