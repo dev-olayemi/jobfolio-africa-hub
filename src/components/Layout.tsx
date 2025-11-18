@@ -84,22 +84,27 @@ export const Layout = ({ children }: LayoutProps) => {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Toolbar - Redesigned */}
       <header className="h-20 border-b border-border bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 lg:px-8 sticky top-0 z-50 shadow-lg">
-        {/* Left: Ad Banner Space */}
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-4 border-primary/20 shadow-xl hover:scale-105 transition-transform cursor-pointer bg-gradient-to-br from-primary to-accent">
+        {/* Left: Ad Banner Space - BOLD & PROMINENT */}
+        <div
+          className="flex items-center gap-4 flex-shrink-0 cursor-pointer group"
+          onClick={() => navigate("/")}
+        >
+          <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-4 border-primary/80 shadow-2xl group-hover:shadow-primary/40 group-hover:scale-110 transition-all bg-gradient-to-br from-primary to-accent ring-2 ring-primary/20">
             <img
               src={logoImage}
-              alt="Ad Banner"
+              alt="JobFolio Africa"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/10" />
           </div>
           <div className="hidden md:block">
-            <div className="text-lg font-bold text-foreground">
-              JobFolio Africa
+            <div className="text-xl font-black text-foreground tracking-tight leading-tight">
+              JobFolio
+              <br />
+              Africa
             </div>
-            <div className="text-xs text-muted-foreground">
-              Find your dream job
+            <div className="text-xs font-semibold text-primary">
+              FIND YOUR DREAM JOB
             </div>
           </div>
         </div>
@@ -154,7 +159,8 @@ export const Layout = ({ children }: LayoutProps) => {
                     <User className="h-4 w-4 mr-2" />
                     Profile
                   </DropdownMenuItem>
-                  {profile?.isAdmin || profile?.email === "alice@example.com" ? (
+                  {profile?.isAdmin ||
+                  profile?.email === "alice@example.com" ? (
                     <DropdownMenuItem onClick={() => navigate("/admin/jobs")}>
                       <Settings className="h-4 w-4 mr-2" />
                       Admin Jobs
@@ -207,11 +213,7 @@ export const Layout = ({ children }: LayoutProps) => {
           {/* Menu Trigger */}
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10"
-              >
+              <Button variant="ghost" size="icon" className="h-10 w-10">
                 <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>

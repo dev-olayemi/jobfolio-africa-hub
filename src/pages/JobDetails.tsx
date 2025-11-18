@@ -291,6 +291,15 @@ const JobDetails = () => {
                         </>
                       )}
                     </Button>
+                    <Button
+                      onClick={() => navigate("/payment")}
+                      variant="outline"
+                      size="lg"
+                      className="w-full shadow-sm"
+                    >
+                      <Zap className="h-5 w-5 mr-2" />
+                      Refine CV for this Job (₦1,000)
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -302,15 +311,11 @@ const JobDetails = () => {
                 <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <Eye className="h-4 w-4" />
-                    <span>{job.views || 0}</span>
+                    <span>{job.views || 0} viewed</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Heart className="h-4 w-4" />
-                    <span>{job.likes || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Users className="h-4 w-4" />
-                    <span>{job.applies || 0}</span>
+                    <span>{job.likes || 0} liked</span>
                   </div>
                 </div>
               </div>
