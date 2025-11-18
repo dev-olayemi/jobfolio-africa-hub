@@ -387,7 +387,7 @@ const Profile = () => {
                   )}
                 </CardContent>
               </Card>
-
+              {/*  */}
               {/* Professional Folio */}
               {hasFolio && folio && (
                 <Card className="border-0 shadow-md">
