@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
@@ -20,6 +21,8 @@ import {
   CheckCircle,
   Briefcase,
   Clock,
+  Zap,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
@@ -48,6 +51,7 @@ const JobDetails = () => {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
@@ -109,10 +113,21 @@ const JobDetails = () => {
       return;
     }
 
+    // Show review modal instead of directly applying
+    setShowReviewModal(true);
+  };
+
+  const handleConfirmApply = async () => {
+    if (!user?.uid || !id) {
+      navigate("/auth");
+      return;
+    }
+
     setIsApplying(true);
     try {
       await submitJobApplication(id, user.uid);
       setHasApplied(true);
+      setShowReviewModal(false);
       toast.success("Application submitted successfully!");
       if (job) {
         setJob({ ...job, applies: (job.applies || 0) + 1 });
@@ -199,100 +214,103 @@ const JobDetails = () => {
             Back to Jobs
           </Button>
 
-          <Card className="mb-6 overflow-hidden border-border/50 shadow-xl">
-            <div className="h-32 bg-gradient-to-r from-primary via-accent to-primary" />
-            <CardHeader className="-mt-12 relative">
-              <div className="flex items-start gap-6">
-                <Avatar className="h-24 w-24 rounded-2xl border-4 border-card shadow-xl bg-card">
+          <Card className="mb-6 overflow-hidden border-0 shadow-lg">
+            <div className="h-24 sm:h-32 bg-gradient-to-r from-primary via-accent to-primary" />
+            <CardHeader className="-mt-12 sm:-mt-12 relative z-10">
+              <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                <Avatar className="h-28 w-28 sm:h-24 sm:w-24 md:h-32 md:w-32 rounded-2xl border-4 border-card shadow-xl bg-card flex-shrink-0">
                   <AvatarImage src={job.logoUrl} alt={job.company} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-2xl font-bold rounded-2xl">
                     {getInitials(job.company)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 mt-8">
-                  <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
-                  <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                    <Building2 className="h-5 w-5" />
-                    <span className="text-lg font-medium">{job.company}</span>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-2xl sm:text-3xl font-bold mb-2 break-words">
+                        {job.title}
+                      </h1>
+                      <div className="flex items-center gap-2 text-muted-foreground mb-3">
+                        <Building2 className="h-4 w-4 flex-shrink-0" />
+                        <span className="font-medium truncate">
+                          {job.company}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleLike}
+                      disabled={isLiking}
+                      className={`rounded-full flex-shrink-0 ${
+                        isLiked
+                          ? "text-destructive border-destructive bg-destructive/10"
+                          : ""
+                      }`}
+                    >
+                      <Heart
+                        className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`}
+                      />
+                    </Button>
                   </div>
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      {job.location}, {job.country}
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{job.location}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-success font-semibold">
-                      <DollarSign className="h-4 w-4" />
-                      {job.salary}
+                    <div className="flex items-center gap-2 text-sm text-success font-semibold">
+                      <DollarSign className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{job.salary}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Posted {getDaysAgo(job.postedAt)} days ago
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">
+                        {getDaysAgo(job.postedAt)}d ago
+                      </span>
                     </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 mb-4">
+                    <Button
+                      onClick={handleApply}
+                      disabled={isApplying || hasApplied}
+                      size="lg"
+                      className="w-full shadow-md bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                    >
+                      {hasApplied ? (
+                        <>
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          Applied
+                        </>
+                      ) : (
+                        <>
+                          <Briefcase className="h-5 w-5 mr-2" />
+                          Apply Now
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleLike}
-                  disabled={isLiking}
-                  className={`rounded-full ${
-                    isLiked ? "text-destructive border-destructive" : ""
-                  }`}
-                >
-                  <Heart
-                    className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`}
-                  />
-                </Button>
               </div>
 
-              <div className="flex flex-col gap-3 mt-6">
-                <Button
-                  onClick={handleApply}
-                  disabled={isApplying || hasApplied}
-                  size="lg"
-                  className="w-full shadow-lg bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                >
-                  {hasApplied ? (
-                    <>
-                      <CheckCircle className="h-5 w-5 mr-2" />
-                      Applied
-                    </>
-                  ) : (
-                    <>
-                      <Briefcase className="h-5 w-5 mr-2" />
-                      Apply Now
-                    </>
-                  )}
-                </Button>
-                
-                {/* CV Refining Feature */}
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full border-primary/30 hover:bg-primary/10"
-                  onClick={() => toast.info("CV Refining: Optimize your CV for this specific job for ₦1,000 to increase your chances! Feature coming soon.")}
-                >
-                  <span className="mr-2">✨</span>
-                  Refine My CV - ₦1,000
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-6 mt-6 pt-6 border-t">
-                <Badge variant="secondary" className="rounded-full px-4 py-2">
+              <div className="flex flex-wrap items-center gap-3 gap-y-2 mt-4 pt-4 border-t">
+                <Badge variant="secondary" className="rounded-full px-3 py-1">
                   {job.category}
                 </Badge>
-                <div className="flex gap-6 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
                     <Eye className="h-4 w-4" />
-                    {job.views || 0} views
+                    <span>{job.views || 0}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Heart className="h-4 w-4" />
-                    {job.likes || 0} likes
+                    <span>{job.likes || 0}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Users className="h-4 w-4" />
-                    {job.applies || 0} applicants
+                    <span>{job.applies || 0}</span>
                   </div>
                 </div>
               </div>
@@ -301,27 +319,36 @@ const JobDetails = () => {
 
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <Card className="border-border/50 shadow-md">
+              <Card className="border-0 shadow-md">
                 <CardHeader>
-                  <h2 className="text-xl font-bold">Job Description</h2>
+                  <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-primary" />
+                    Job Description
+                  </h2>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                  <p className="text-sm sm:text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">
                     {job.description}
                   </p>
                 </CardContent>
               </Card>
 
               {job.responsibilities && job.responsibilities.length > 0 && (
-                <Card className="border-border/50 shadow-md">
+                <Card className="border-0 shadow-md">
                   <CardHeader>
-                    <h2 className="text-xl font-bold">Responsibilities</h2>
+                    <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                      Responsibilities
+                    </h2>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-3">
                       {job.responsibilities.map((item, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                        <li
+                          key={index}
+                          className="flex items-start gap-3 text-sm sm:text-base"
+                        >
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
                           <span className="text-muted-foreground">{item}</span>
                         </li>
                       ))}
@@ -331,15 +358,21 @@ const JobDetails = () => {
               )}
 
               {job.requirements && job.requirements.length > 0 && (
-                <Card className="border-border/50 shadow-md">
+                <Card className="border-0 shadow-md">
                   <CardHeader>
-                    <h2 className="text-xl font-bold">Requirements</h2>
+                    <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-accent" />
+                      Requirements
+                    </h2>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-3">
                       {job.requirements.map((item, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <CheckCircle className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
+                        <li
+                          key={index}
+                          className="flex items-start gap-3 text-sm sm:text-base"
+                        >
+                          <div className="h-2 w-2 rounded-full bg-accent mt-2 flex-shrink-0" />
                           <span className="text-muted-foreground">{item}</span>
                         </li>
                       ))}
@@ -350,16 +383,20 @@ const JobDetails = () => {
             </div>
 
             <div className="space-y-6">
-              <Card className="border-border/50 shadow-md">
-                <CardHeader>
-                  <h3 className="font-bold">Contact Information</h3>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {job.contactEmail && (
-                    <div className="flex items-start gap-3">
-                      <Mail className="h-5 w-5 text-primary mt-0.5" />
+              {job.contactEmail || job.contactPhone ? (
+                <Card className="border-0 shadow-md">
+                  <CardHeader>
+                    <h3 className="font-bold flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-primary" />
+                      Contact
+                    </h3>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {job.contactEmail && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Email</p>
+                        <p className="text-xs text-muted-foreground mb-1 font-medium">
+                          Email
+                        </p>
                         <a
                           href={`mailto:${job.contactEmail}`}
                           className="text-sm text-primary hover:underline break-all"
@@ -367,13 +404,12 @@ const JobDetails = () => {
                           {job.contactEmail}
                         </a>
                       </div>
-                    </div>
-                  )}
-                  {job.contactPhone && (
-                    <div className="flex items-start gap-3">
-                      <Phone className="h-5 w-5 text-primary mt-0.5" />
+                    )}
+                    {job.contactPhone && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                        <p className="text-xs text-muted-foreground mb-1 font-medium">
+                          Phone
+                        </p>
                         <a
                           href={`tel:${job.contactPhone}`}
                           className="text-sm text-primary hover:underline"
@@ -381,8 +417,31 @@ const JobDetails = () => {
                           {job.contactPhone}
                         </a>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              <Card className="border-0 shadow-md bg-primary/5">
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-primary" />
+                    Application Tips
+                  </h3>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span>Make sure your profile is complete</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span>Highlight relevant skills</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span>Apply early for better chances</span>
+                    </li>
+                  </ul>
                 </CardContent>
               </Card>
             </div>
@@ -395,7 +454,8 @@ const JobDetails = () => {
           <DialogHeader>
             <DialogTitle>Access Required</DialogTitle>
             <DialogDescription>
-              To apply for jobs, you need to either build your folio or pay the access fee.
+              To apply for jobs, you need to either build your folio or pay the
+              access fee.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 mt-4">
@@ -421,6 +481,162 @@ const JobDetails = () => {
               Pay Access Fee
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Application Review Modal */}
+      <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-primary" />
+              Review Your Application
+            </DialogTitle>
+            <DialogDescription>
+              Before submitting, make sure everything is correct
+            </DialogDescription>
+          </DialogHeader>
+
+          {job && (
+            <div className="space-y-6">
+              {/* Job Preview */}
+              <div className="bg-gradient-to-br from-primary/5 to-accent/5 p-4 rounded-lg border border-primary/10">
+                <div className="flex gap-3 sm:gap-4 items-start">
+                  {job.companyLogo && (
+                    <Avatar className="h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
+                      <AvatarImage src={job.companyLogo} alt={job.company} />
+                      <AvatarFallback>{job.company.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-base sm:text-lg">
+                      {job.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {job.company}
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {job.category}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="text-xs flex items-center gap-1"
+                      >
+                        <MapPin className="h-3 w-3" />
+                        {job.location}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="text-xs flex items-center gap-1"
+                      >
+                        <DollarSign className="h-3 w-3" />
+                        {job.salary}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Your Profile Preview */}
+              <div className="border rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-primary" />
+                  Your Profile
+                </h4>
+                {folio?.personalInfo && (
+                  <div className="text-sm space-y-2">
+                    <div>
+                      <span className="text-muted-foreground">Name:</span>
+                      <p className="font-medium">
+                        {folio.personalInfo.fullName}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Email:</span>
+                      <p className="font-medium">{folio.personalInfo.email}</p>
+                    </div>
+                    {folio.personalInfo.phone && (
+                      <div>
+                        <span className="text-muted-foreground">Phone:</span>
+                        <p className="font-medium">
+                          {folio.personalInfo.phone}
+                        </p>
+                      </div>
+                    )}
+                    {folio.personalInfo.location && (
+                      <div>
+                        <span className="text-muted-foreground">Location:</span>
+                        <p className="font-medium">
+                          {folio.personalInfo.location}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Skills Preview */}
+              {folio?.skills && folio.skills.length > 0 && (
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    Your Skills ({folio.skills.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {folio.skills.slice(0, 5).map((skill, idx) => (
+                      <Badge key={idx} variant="secondary">
+                        {skill}
+                      </Badge>
+                    ))}
+                    {folio.skills.length > 5 && (
+                      <Badge variant="outline">
+                        +{folio.skills.length - 5} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Important Note */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                <p className="text-amber-800">
+                  By submitting this application, you confirm that the
+                  information above is accurate.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReviewModal(false)}
+                  disabled={isApplying}
+                  className="flex-1"
+                >
+                  Review Profile
+                </Button>
+                <Button
+                  onClick={handleConfirmApply}
+                  disabled={isApplying}
+                  size="lg"
+                  className="flex-1"
+                >
+                  {isApplying ? (
+                    <>
+                      <Zap className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Confirm & Apply
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </Layout>

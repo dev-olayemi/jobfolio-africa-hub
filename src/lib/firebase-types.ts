@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Timestamp } from "firebase/firestore";
 
 export interface UserProfile {
@@ -79,6 +80,7 @@ export interface Subscription {
 }
 
 export interface Job {
+  companyLogo: any;
   id: string;
   title: string;
   company: string;

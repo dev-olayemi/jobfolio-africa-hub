@@ -167,141 +167,160 @@ const Jobs = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background">
-        <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="container max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
           {/* Header Section */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-                <Briefcase className="h-6 w-6 text-primary-foreground" />
+          <div className="mb-8 sm:mb-10">
+            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg flex-shrink-0">
+                <Briefcase className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
               </div>
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent line-clamp-1">
                   Discover Jobs
                 </h1>
-                <p className="text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   {filteredJobs.length} opportunities waiting for you
                 </p>
               </div>
             </div>
 
             {/* Search and Filter Bar */}
-            <div className="flex gap-3 mt-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-6">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <Input
-                  placeholder="Search jobs, companies, or categories..."
+                  placeholder="Search jobs, companies..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-12 bg-card border-border/50 shadow-sm"
+                  className="pl-10 h-10 sm:h-12 bg-card border-border/50 shadow-sm text-xs sm:text-sm"
                 />
               </div>
-              <Button variant="outline" size="lg" className="gap-2 shadow-sm">
-                <Filter className="h-4 w-4" />
-                Filters
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 shadow-sm sm:px-4 whitespace-nowrap"
+                asChild
+              >
+                <div className="flex items-center justify-center">
+                  <Filter className="h-4 w-4" />
+                  <span className="hidden sm:inline">Filters</span>
+                </div>
               </Button>
             </div>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
               {[...Array(6)].map((_, i) => (
                 <Card
                   key={i}
-                  className="animate-pulse border-border/50 shadow-md"
+                  className="animate-pulse border border-border/50 shadow-md overflow-hidden"
                 >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start gap-4">
-                      <div className="h-16 w-16 rounded-xl bg-muted" />
+                  <CardHeader className="pb-4 sm:pb-5">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-xl bg-muted flex-shrink-0" />
                       <div className="flex-1 space-y-2">
                         <div className="h-5 bg-muted rounded w-3/4" />
                         <div className="h-4 bg-muted rounded w-1/2" />
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="h-4 bg-muted rounded w-full" />
-                      <div className="h-4 bg-muted rounded w-2/3" />
+                  <CardContent className="space-y-3">
+                    <div className="h-4 bg-muted rounded w-full" />
+                    <div className="h-4 bg-muted rounded w-2/3" />
+                    <div className="flex gap-2 pt-2">
+                      <div className="h-8 bg-muted rounded-full w-20" />
+                      <div className="h-4 bg-muted rounded w-16 ml-auto" />
+                    </div>
+                    <div className="pt-2">
+                      <div className="h-10 bg-muted rounded w-full" />
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : filteredJobs.length === 0 ? (
-            <Card className="text-center py-16 border-border/50 shadow-md">
+            <Card className="text-center py-12 sm:py-16 border border-border/50 shadow-md">
               <CardContent>
-                <div className="h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                  <Briefcase className="h-12 w-12 text-muted-foreground" />
+                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4 sm:mb-5">
+                  <Briefcase className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
-                <p className="text-muted-foreground">
+                <h3 className="text-lg sm:text-xl font-semibold mb-2">
+                  No jobs found
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto">
                   Try adjusting your search or check back later for new
                   opportunities.
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
               {filteredJobs.map((job) => (
                 <Card
                   key={job.id}
-                  className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-border/50 hover:border-primary/50 hover:-translate-y-1 bg-card overflow-hidden"
+                  className="group cursor-pointer hover:shadow-2xl transition-all duration-300 border border-border/50 hover:border-primary/50 hover:-translate-y-1 bg-card/80 backdrop-blur-sm overflow-hidden flex flex-col"
                   onClick={() => handleJobClick(job.id)}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  {/* Gradient background on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-                  <CardHeader className="pb-3 relative">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="h-16 w-16 rounded-xl border-2 border-border shadow-sm">
+                  {/* Header with Company Logo */}
+                  <CardHeader className="pb-4 sm:pb-5 relative">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <Avatar className="h-12 w-12 sm:h-16 sm:w-16 rounded-xl border-2 border-border/50 shadow-md flex-shrink-0">
                         <AvatarImage src={job.logoUrl} alt={job.company} />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-lg font-semibold rounded-xl">
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-semibold rounded-xl text-xs sm:text-sm">
                           {getInitials(job.company)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                        <h3 className="font-bold text-base sm:text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2">
                           {job.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                          <Building2 className="h-3.5 w-3.5" />
-                          {job.company}
+                        <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 mt-1.5 line-clamp-1">
+                          <Building2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                          <span className="truncate">{job.company}</span>
                         </p>
                       </div>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="space-y-4 relative">
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
+                  {/* Job Details */}
+                  <CardContent className="space-y-4 sm:space-y-5 relative flex-1 flex flex-col">
+                    {/* Location and Salary Row */}
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground/60" />
                         <span className="line-clamp-1">{job.location}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-success font-semibold">
-                        <DollarSign className="h-4 w-4" />
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-green-600 dark:text-green-400">
+                        <DollarSign className="h-4 w-4 flex-shrink-0" />
                         <span>{job.salary}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary" className="rounded-full px-3">
+                    {/* Category Badge and Posted Date */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-2 sm:pt-3 border-t border-border/30">
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full px-2 sm:px-3 py-1 text-xs sm:text-sm"
+                      >
                         {job.category}
                       </Badge>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5" />
-                        {getDaysAgo(job.postedAt)}d ago
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                        <Clock className="h-3 w-3 flex-shrink-0" />
+                        <span className="whitespace-nowrap">
+                          {getDaysAgo(job.postedAt)}d ago
+                        </span>
                       </div>
                     </div>
 
-                    {/* Metrics - Only show date posted */}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2 border-t border-border/50">
-                      <Clock className="h-3.5 w-3.5" />
-                      <span>Posted {getDaysAgo(job.postedAt)}d ago</span>
-                    </div>
-
+                    {/* Action Button */}
                     <Button
                       onClick={(e) => handleApplyClick(e, job.id)}
-                      className="w-full mt-2 shadow-sm hover:shadow-md transition-shadow"
-                      size="lg"
+                      className="w-full mt-auto sm:mt-4 shadow-md hover:shadow-lg transition-shadow duration-200 text-xs sm:text-sm py-2 sm:py-3"
+                      size="sm"
                     >
                       {hasAccess ? "Apply Now" : "View Details"}
                     </Button>
