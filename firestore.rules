@@ -6,7 +6,7 @@ service cloud.firestore {
     // Profiles: only the profile owner can read and write their profile
     match /profiles/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid || (request.auth != null && request.auth.uid == userId);
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
@@ -22,36 +22,33 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // Jobs: public read, anyone can increment views
+    // Jobs: public read, anyone authenticated can apply
     // Subcollections for likes and applications are user-specific
     match /jobs/{jobId} {
       allow read: if true;
-      // Allow anyone to update views field only (increment views)
-      allow update: if request.resource.data.views == resource.data.views + 1
-                    && request.resource.data.likes == resource.data.likes
-                    && request.resource.data.applies == resource.data.applies
-                    && request.resource.data.keys().hasOnly(resource.data.keys());
+      
+      // Allow authenticated users to update only specific fields (views, likes, applies counters)
+      // This prevents unauthorized updates to job content
+      allow update: if request.auth != null 
+                    && request.resource.data.title == resource.data.title
+                    && request.resource.data.description == resource.data.description
+                    && request.resource.data.company == resource.data.company;
+      
       // Only admin can create and delete
       allow create, delete: if request.auth != null && request.auth.token.admin == true;
       
-      // Likes subcollection: users can create/delete their own likes
-      match /likes/{userId} {
-        allow create: if request.auth != null && request.auth.uid == userId;
-        allow read, delete: if request.auth != null && request.auth.uid == userId;
+      // Likes subcollection: users can create/read/delete their own likes (document ID = userId)
+      match /likes/{likeUserId} {
+        allow create: if request.auth != null && request.auth.uid == likeUserId;
+        allow read, delete: if request.auth != null && request.auth.uid == likeUserId;
       }
       
-      // Applications subcollection: users can create their own applications
-      match /applications/{userId} {
-        allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.userId == request.auth.uid;
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow update, delete: if request.auth != null && request.auth.uid == userId;
+      // Applications subcollection: users can create/read their own applications (document ID = userId)
+      // Key: document ID must match the userId in the request
+      match /applications/{appUserId} {
+        allow create: if request.auth != null && request.auth.uid == appUserId && request.resource.data.userId == request.auth.uid;
+        allow read, update, delete: if request.auth != null && request.auth.uid == appUserId;
       }
-    }
-
-    // Applications: users can create applications for themselves and read their own
-    match /applications/{appId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
     // Default: deny everything else
