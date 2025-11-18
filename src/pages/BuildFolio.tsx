@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -95,17 +94,20 @@ const BuildFolio = () => {
     }
   }, [user, folio, navigate]);
 
-  // Step 1: Industries
+  // Step 1: Industries - FIXED: Use stable state setter
   const handleIndustryToggle = (industry: string) => {
-    if (selectedIndustries.includes(industry)) {
-      setSelectedIndustries(selectedIndustries.filter((i) => i !== industry));
-    } else {
-      if (selectedIndustries.length < 4) {
-        setSelectedIndustries([...selectedIndustries, industry]);
+    setSelectedIndustries((prev) => {
+      if (prev.includes(industry)) {
+        return prev.filter((i) => i !== industry);
       } else {
-        toast.error("You can select up to 4 industries only");
+        if (prev.length < 4) {
+          return [...prev, industry];
+        } else {
+          toast.error("You can select up to 4 industries only");
+          return prev;
+        }
       }
-    }
+    });
   };
 
   // Skills
@@ -247,9 +249,9 @@ const BuildFolio = () => {
 
       setIsComplete(true);
       await refreshUserData();
-      
+
       toast.success("Your professional profile has been created successfully!");
-      
+
       setTimeout(() => {
         navigate("/profile");
       }, 2000);
@@ -289,7 +291,9 @@ const BuildFolio = () => {
                   <CheckCircle className="h-10 w-10 text-primary" />
                 </div>
               </div>
-              <h2 className="text-3xl font-bold mb-4">Profile Created Successfully!</h2>
+              <h2 className="text-3xl font-bold mb-4">
+                Profile Created Successfully!
+              </h2>
               <p className="text-muted-foreground mb-2">
                 Your professional profile is ready
               </p>
@@ -312,7 +316,9 @@ const BuildFolio = () => {
         {/* Progress indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold">Build Your Professional Profile</h1>
+            <h1 className="text-3xl font-bold">
+              Build Your Professional Profile
+            </h1>
             <span className="text-sm text-muted-foreground">
               Step {currentStep} of 6
             </span>
@@ -336,34 +342,39 @@ const BuildFolio = () => {
               <CardHeader>
                 <CardTitle>Select Your Industries</CardTitle>
                 <CardDescription>
-                  Choose 1-4 industries you're interested in (you can change this later)
+                  Choose 1-4 industries you're interested in
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {industries.map((industry, index) => (
-                    <div
+                    <button
                       key={`industry-${index}`}
-                      className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer"
+                      type="button"
                       onClick={() => handleIndustryToggle(industry)}
+                      className={`p-3 rounded-lg border transition-all text-left ${
+                        selectedIndustries.includes(industry)
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-primary/50"
+                      }`}
                     >
-                      <Checkbox
-                        id={`industry-${index}`}
-                        checked={selectedIndustries.includes(industry)}
-                      />
-                      <Label
-                        htmlFor={`industry-${index}`}
-                        className="text-sm font-medium cursor-pointer flex-1"
-                      >
-                        {industry}
-                      </Label>
-                    </div>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-4 h-4 rounded border transition-all flex-shrink-0 ${
+                            selectedIndustries.includes(industry)
+                              ? "bg-primary border-primary"
+                              : "border-muted-foreground"
+                          }`}
+                        />
+                        <span className="text-sm font-medium">{industry}</span>
+                      </div>
+                    </button>
                   ))}
                 </div>
                 {selectedIndustries.length > 0 && (
                   <div className="mt-4 pt-4 border-t">
                     <Label className="text-sm font-medium mb-2 block">
-                      Selected Industries ({selectedIndustries.length}/4)
+                      Selected ({selectedIndustries.length}/4)
                     </Label>
                     <div className="flex flex-wrap gap-2">
                       {selectedIndustries.map((industry) => (
@@ -383,9 +394,7 @@ const BuildFolio = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
-                <CardDescription>
-                  Tell us about yourself
-                </CardDescription>
+                <CardDescription>Tell us about yourself</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -596,25 +605,28 @@ const BuildFolio = () => {
                       />
                     </div>
                     <div className="flex items-end pb-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="current-study"
-                          checked={educationForm.current}
-                          onCheckedChange={(checked) =>
-                            setEducationForm({
-                              ...educationForm,
-                              current: checked === true,
-                              endDate: checked ? "" : educationForm.endDate,
-                            })
-                          }
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEducationForm({
+                            ...educationForm,
+                            current: !educationForm.current,
+                            endDate: !educationForm.current
+                              ? ""
+                              : educationForm.endDate,
+                          })
+                        }
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border transition-all ${
+                            educationForm.current
+                              ? "bg-primary border-primary"
+                              : "border-muted-foreground"
+                          }`}
                         />
-                        <Label
-                          htmlFor="current-study"
-                          className="text-sm cursor-pointer"
-                        >
-                          Currently studying here
-                        </Label>
-                      </div>
+                        <span>Currently studying here</span>
+                      </button>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -656,12 +668,15 @@ const BuildFolio = () => {
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-semibold">{edu.degree} in {edu.field}</h4>
+                            <h4 className="font-semibold">
+                              {edu.degree} in {edu.field}
+                            </h4>
                             <p className="text-sm text-muted-foreground">
                               {edu.school}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {edu.startDate} - {edu.current ? "Present" : edu.endDate}
+                              {edu.startDate} -{" "}
+                              {edu.current ? "Present" : edu.endDate}
                             </p>
                             {edu.description && (
                               <p className="text-sm mt-2">{edu.description}</p>
@@ -763,25 +778,28 @@ const BuildFolio = () => {
                       />
                     </div>
                     <div className="flex items-end pb-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="current-job"
-                          checked={experienceForm.current}
-                          onCheckedChange={(checked) =>
-                            setExperienceForm({
-                              ...experienceForm,
-                              current: checked === true,
-                              endDate: checked ? "" : experienceForm.endDate,
-                            })
-                          }
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExperienceForm({
+                            ...experienceForm,
+                            current: !experienceForm.current,
+                            endDate: !experienceForm.current
+                              ? ""
+                              : experienceForm.endDate,
+                          })
+                        }
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border transition-all ${
+                            experienceForm.current
+                              ? "bg-primary border-primary"
+                              : "border-muted-foreground"
+                          }`}
                         />
-                        <Label
-                          htmlFor="current-job"
-                          className="text-sm cursor-pointer"
-                        >
-                          Currently working here
-                        </Label>
-                      </div>
+                        <span>Currently working here</span>
+                      </button>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -829,7 +847,8 @@ const BuildFolio = () => {
                               {exp.location && ` • ${exp.location}`}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {exp.startDate} - {exp.current ? "Present" : exp.endDate}
+                              {exp.startDate} -{" "}
+                              {exp.current ? "Present" : exp.endDate}
                             </p>
                             {exp.description && (
                               <p className="text-sm mt-2">{exp.description}</p>
@@ -987,7 +1006,9 @@ const BuildFolio = () => {
                 disabled={isSubmitting}
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isSubmitting ? "Creating Profile..." : "Create Profile & Start Trial"}
+                {isSubmitting
+                  ? "Creating Profile..."
+                  : "Create Profile & Start Trial"}
               </Button>
             )}
           </div>
