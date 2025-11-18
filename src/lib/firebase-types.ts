@@ -44,6 +44,14 @@ export interface Experience {
   description?: string;
 }
 
+export interface PersonalInfo {
+  fullName: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  summary?: string;
+}
+
 export interface Folio {
   id: string;
   userId: string;
@@ -53,6 +61,7 @@ export interface Folio {
   skills?: string[];
   education?: Education[];
   experience?: Experience[];
+  personalInfo?: PersonalInfo;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

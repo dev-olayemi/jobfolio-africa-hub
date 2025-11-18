@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
@@ -16,7 +15,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Upload,
   CheckCircle,
   Loader2,
   Plus,
@@ -26,10 +24,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, setDoc, doc, Timestamp } from "firebase/firestore";
-import { storage, db } from "@/lib/firebase";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { setDoc, doc, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Education, Experience } from "@/lib/firebase-types";
 
 const industries = [
   "Technology",
@@ -44,43 +41,30 @@ const industries = [
   "Agriculture",
 ];
 
-interface EducationEntry {
-  id?: string;
-  school: string;
-  degree: string;
-  field: string;
-  startDate: string;
-  endDate?: string;
-  current?: boolean;
-  description?: string;
-}
-
-interface ExperienceEntry {
-  id?: string;
-  company: string;
-  position: string;
-  location?: string;
-  startDate: string;
-  endDate?: string;
-  current?: boolean;
-  description?: string;
-}
-
 const BuildFolio = () => {
   const navigate = useNavigate();
   const { user, folio, refreshUserData } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
-  const [cvFile, setCvFile] = useState<File | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState("");
-  const [education, setEducation] = useState<EducationEntry[]>([]);
-  const [experience, setExperience] = useState<ExperienceEntry[]>([]);
+  const [education, setEducation] = useState<Education[]>([]);
+  const [experience, setExperience] = useState<Experience[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
+  // Personal info
+  const [personalInfo, setPersonalInfo] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    summary: "",
+  });
+
   // Education form state
-  const [educationForm, setEducationForm] = useState<EducationEntry>({
+  const [educationForm, setEducationForm] = useState<Education>({
+    id: "",
     school: "",
     degree: "",
     field: "",
@@ -91,7 +75,8 @@ const BuildFolio = () => {
   });
 
   // Experience form state
-  const [experienceForm, setExperienceForm] = useState<ExperienceEntry>({
+  const [experienceForm, setExperienceForm] = useState<Experience>({
+    id: "",
     company: "",
     position: "",
     location: "",
@@ -110,7 +95,7 @@ const BuildFolio = () => {
     }
   }, [user, folio, navigate]);
 
-  // Step 1: CV and Industries
+  // Step 1: Industries
   const handleIndustryToggle = (industry: string) => {
     if (selectedIndustries.includes(industry)) {
       setSelectedIndustries(selectedIndustries.filter((i) => i !== industry));
@@ -120,18 +105,6 @@ const BuildFolio = () => {
       } else {
         toast.error("You can select up to 4 industries only");
       }
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("File size should not exceed 5MB");
-        return;
-      }
-      setCvFile(file);
-      toast.success("CV uploaded successfully");
     }
   };
 
@@ -171,6 +144,7 @@ const BuildFolio = () => {
       { ...educationForm, id: Math.random().toString(36).substr(2, 9) },
     ]);
     setEducationForm({
+      id: "",
       school: "",
       degree: "",
       field: "",
@@ -201,6 +175,7 @@ const BuildFolio = () => {
       { ...experienceForm, id: Math.random().toString(36).substr(2, 9) },
     ]);
     setExperienceForm({
+      id: "",
       company: "",
       position: "",
       location: "",
@@ -225,137 +200,105 @@ const BuildFolio = () => {
       return;
     }
 
-    if (!cvFile) {
-      toast.error("Please upload your CV");
+    if (selectedIndustries.length < 1) {
+      toast.error("Please select at least 1 industry");
       return;
     }
 
-    if (selectedIndustries.length < 1) {
-      toast.error("Please select at least 1 industry");
+    if (!personalInfo.fullName || !personalInfo.email) {
+      toast.error("Please fill in your personal information");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Upload CV
-      let cvUrl: string;
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-      if (cloudName && uploadPreset) {
-        try {
-          cvUrl = await uploadToCloudinary(cvFile);
-        } catch (err: any) {
-          const msg = err?.message || String(err);
-          console.error("Cloudinary upload error:", err);
-          if (
-            msg.includes("Upload preset not found") ||
-            msg.includes("preset")
-          ) {
-            toast.error(
-              "Cloudinary preset not found — falling back to Firebase Storage"
-            );
-          } else {
-            toast.error(
-              "Cloudinary upload failed, falling back to Firebase Storage"
-            );
-          }
-          const storageRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
-          await uploadBytes(storageRef, cvFile);
-          cvUrl = await getDownloadURL(storageRef);
-        }
-      } else {
-        const storageRef = ref(storage, `cvs/${user.uid}/${cvFile.name}`);
-        await uploadBytes(storageRef, cvFile);
-        cvUrl = await getDownloadURL(storageRef);
-      }
-
       // Create folio document with all details
       const folioData = {
         userId: user.uid,
-        cvUrl,
-        cvFileName: cvFile.name,
+        cvUrl: "", // No file upload, CV is generated from form data
+        cvFileName: `${personalInfo.fullName.replace(/\s+/g, "_")}_CV`,
         industries: selectedIndustries,
         skills: skills,
-        education: education.map((e) => ({
-          ...e,
-          id: Math.random().toString(36).substr(2, 9),
-        })),
-        experience: experience.map((e) => ({
-          ...e,
-          id: Math.random().toString(36).substr(2, 9),
-        })),
+        education: education,
+        experience: experience,
+        personalInfo: personalInfo,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
 
-      await addDoc(collection(db, "folios"), folioData);
+      const folioRef = doc(db, "folios", user.uid);
+      await setDoc(folioRef, folioData);
 
       // Create trial subscription
-      const trialStartDate = Timestamp.now();
-      const trialEndDate = new Date();
-      trialEndDate.setDate(trialEndDate.getDate() + 3);
-
       const subscriptionData = {
         userId: user.uid,
-        status: "trial",
-        trialStartDate,
-        trialEndDate: Timestamp.fromDate(trialEndDate),
+        status: "trial" as const,
+        trialStartDate: Timestamp.now(),
+        trialEndDate: Timestamp.fromDate(
+          new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+        ),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
 
-      await setDoc(doc(db, "subscriptions", user.uid), subscriptionData);
+      const subscriptionRef = doc(db, "subscriptions", user.uid);
+      await setDoc(subscriptionRef, subscriptionData);
 
-      await refreshUserData();
       setIsComplete(true);
-      toast.success("Folio created! Your 3-day trial has been activated.");
+      await refreshUserData();
+      
+      toast.success("Your professional profile has been created successfully!");
+      
+      setTimeout(() => {
+        navigate("/profile");
+      }, 2000);
     } catch (error) {
       console.error("Error creating folio:", error);
-      toast.error("Failed to create folio. Please try again.");
+      toast.error("Failed to create profile. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return selectedIndustries.length >= 1;
+      case 2:
+        return personalInfo.fullName && personalInfo.email;
+      case 3:
+        return skills.length > 0;
+      case 4:
+        return education.length > 0;
+      case 5:
+        return experience.length > 0;
+      default:
+        return true;
     }
   };
 
   if (isComplete) {
     return (
       <Layout>
-        <div className="container max-w-2xl mx-auto px-4 py-12">
-          <Card className="text-center bg-gradient-to-br from-success/10 to-success/5 border-success/20">
-            <CardHeader>
-              <div className="mx-auto mb-4 w-16 h-16 bg-success/20 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-8 w-8 text-success" />
-              </div>
-              <CardTitle className="text-3xl">
-                Professional Folio Created! 🎉
-              </CardTitle>
-              <CardDescription>
-                Your comprehensive job profile is ready. Your 3-day trial has
-                been activated!
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  You can now access job listings, explore opportunities that
-                  match your profile, and start applying to positions in your
-                  preferred industries.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button onClick={() => navigate("/jobs")} size="lg">
-                    Browse Jobs
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate("/profile")}
-                    size="lg"
-                  >
-                    View Profile
-                  </Button>
+        <div className="container max-w-2xl mx-auto py-12">
+          <Card className="text-center">
+            <CardContent className="pt-12 pb-12">
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-10 w-10 text-primary" />
                 </div>
               </div>
+              <h2 className="text-3xl font-bold mb-4">Profile Created Successfully!</h2>
+              <p className="text-muted-foreground mb-2">
+                Your professional profile is ready
+              </p>
+              <p className="text-sm text-muted-foreground mb-6">
+                You now have a 3-day trial with full access to job listings
+              </p>
+              <Button onClick={() => navigate("/profile")} size="lg">
+                View Profile
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -365,143 +308,166 @@ const BuildFolio = () => {
 
   return (
     <Layout>
-      <div className="container max-w-4xl mx-auto px-3 md:px-4 py-6">
+      <div className="container max-w-4xl mx-auto py-8">
+        {/* Progress indicator */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Build Your Professional Folio
-          </h1>
-          <p className="text-muted-foreground">
-            Create a comprehensive job profile to unlock career opportunities
-            across Africa
-          </p>
-
-          {/* Progress Steps */}
-          <div className="flex items-center gap-2 mt-6 overflow-x-auto pb-2">
-            {[
-              { num: 1, label: "CV & Industries" },
-              { num: 2, label: "Skills" },
-              { num: 3, label: "Education" },
-              { num: 4, label: "Experience" },
-              { num: 5, label: "Review" },
-            ].map((step) => (
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold">Build Your Professional Profile</h1>
+            <span className="text-sm text-muted-foreground">
+              Step {currentStep} of 6
+            </span>
+          </div>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5, 6].map((step) => (
               <div
-                key={step.num}
-                className="flex items-center gap-2 flex-shrink-0"
-              >
-                <div
-                  className={`flex items-center justify-center h-10 w-10 rounded-full font-semibold text-sm transition-all ${
-                    currentStep >= step.num
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {currentStep > step.num ? (
-                    <CheckCircle className="h-5 w-5" />
-                  ) : (
-                    step.num
-                  )}
-                </div>
-                <span
-                  className={`text-xs font-medium hidden sm:inline ${
-                    currentStep >= step.num
-                      ? "text-foreground"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {step.label}
-                </span>
-                {step.num < 5 && (
-                  <div
-                    className={`h-0.5 w-4 mx-1 ${
-                      currentStep > step.num ? "bg-primary" : "bg-muted"
-                    }`}
-                  />
-                )}
-              </div>
+                key={step}
+                className={`h-2 flex-1 rounded-full transition-colors ${
+                  step <= currentStep ? "bg-primary" : "bg-muted"
+                }`}
+              />
             ))}
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Step 1: CV and Industries */}
+        <form onSubmit={handleSubmit}>
+          {/* Step 1: Industries */}
           {currentStep === 1 && (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upload Your CV</CardTitle>
-                  <CardDescription>
-                    Upload your resume in PDF, DOC, or DOCX format (Max 5MB)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Label htmlFor="cv-upload" className="block">
-                    <div className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors bg-muted/30">
-                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm font-medium text-foreground">
-                        {cvFile
-                          ? cvFile.name
-                          : "Click to upload or drag and drop"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        PDF, DOC, DOCX up to 5MB
-                      </p>
-                    </div>
-                    <Input
-                      id="cv-upload"
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                  </Label>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Select Industries</CardTitle>
-                  <CardDescription>
-                    Choose at least 1 industry (up to 4)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {industries.map((industry, index) => (
-                      <div
-                        key={`industry-${index}`}
-                        className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer"
-                        onClick={() => handleIndustryToggle(industry)}
+            <Card>
+              <CardHeader>
+                <CardTitle>Select Your Industries</CardTitle>
+                <CardDescription>
+                  Choose 1-4 industries you're interested in (you can change this later)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {industries.map((industry, index) => (
+                    <div
+                      key={`industry-${index}`}
+                      className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer"
+                      onClick={() => handleIndustryToggle(industry)}
+                    >
+                      <Checkbox
+                        id={`industry-${index}`}
+                        checked={selectedIndustries.includes(industry)}
+                      />
+                      <Label
+                        htmlFor={`industry-${index}`}
+                        className="text-sm font-medium cursor-pointer flex-1"
                       >
-                        <Checkbox
-                          id={`industry-${index}`}
-                          checked={selectedIndustries.includes(industry)}
-                          onCheckedChange={() => handleIndustryToggle(industry)}
-                        />
-                        <Label
-                          htmlFor={`industry-${index}`}
-                          className="text-sm font-medium cursor-pointer flex-1"
-                        >
+                        {industry}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                {selectedIndustries.length > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Label className="text-sm font-medium mb-2 block">
+                      Selected Industries ({selectedIndustries.length}/4)
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedIndustries.map((industry) => (
+                        <Badge key={industry} variant="secondary">
                           {industry}
-                        </Label>
-                      </div>
-                    ))}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    Selected: {selectedIndustries.length} / 4{" "}
-                    {selectedIndustries.length === 0 && "(Required)"}
-                  </p>
-                </CardContent>
-              </Card>
-            </>
+                )}
+              </CardContent>
+            </Card>
           )}
 
-          {/* Step 2: Skills */}
+          {/* Step 2: Personal Information */}
           {currentStep === 2 && (
             <Card>
               <CardHeader>
-                <CardTitle>Add Your Skills</CardTitle>
+                <CardTitle>Personal Information</CardTitle>
                 <CardDescription>
-                  List your professional skills (optional, up to 20)
+                  Tell us about yourself
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Full Name *</Label>
+                    <Input
+                      placeholder="John Doe"
+                      value={personalInfo.fullName}
+                      onChange={(e) =>
+                        setPersonalInfo({
+                          ...personalInfo,
+                          fullName: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email *</Label>
+                    <Input
+                      type="email"
+                      placeholder="john@example.com"
+                      value={personalInfo.email}
+                      onChange={(e) =>
+                        setPersonalInfo({
+                          ...personalInfo,
+                          email: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Phone</Label>
+                    <Input
+                      placeholder="+234 800 000 0000"
+                      value={personalInfo.phone}
+                      onChange={(e) =>
+                        setPersonalInfo({
+                          ...personalInfo,
+                          phone: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Input
+                      placeholder="Lagos, Nigeria"
+                      value={personalInfo.location}
+                      onChange={(e) =>
+                        setPersonalInfo({
+                          ...personalInfo,
+                          location: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Professional Summary</Label>
+                  <Textarea
+                    placeholder="Brief overview of your professional background and career objectives..."
+                    rows={4}
+                    value={personalInfo.summary}
+                    onChange={(e) =>
+                      setPersonalInfo({
+                        ...personalInfo,
+                        summary: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Skills */}
+          {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Skills</CardTitle>
+                <CardDescription>
+                  Add your key professional skills (add at least 3)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -551,14 +517,14 @@ const BuildFolio = () => {
             </Card>
           )}
 
-          {/* Step 3: Education */}
-          {currentStep === 3 && (
+          {/* Step 4: Education */}
+          {currentStep === 4 && (
             <>
-              <Card>
+              <Card className="mb-4">
                 <CardHeader>
                   <CardTitle>Add Education</CardTitle>
                   <CardDescription>
-                    Share your academic background and qualifications (optional)
+                    Share your academic background (add at least 1)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -579,7 +545,7 @@ const BuildFolio = () => {
                     <div className="space-y-2">
                       <Label>Degree *</Label>
                       <Input
-                        placeholder="Bachelor"
+                        placeholder="Bachelor of Science"
                         value={educationForm.degree}
                         onChange={(e) =>
                           setEducationForm({
@@ -605,7 +571,7 @@ const BuildFolio = () => {
                     <div className="space-y-2">
                       <Label>Start Date *</Label>
                       <Input
-                        type="date"
+                        type="month"
                         value={educationForm.startDate}
                         onChange={(e) =>
                           setEducationForm({
@@ -618,7 +584,7 @@ const BuildFolio = () => {
                     <div className="space-y-2">
                       <Label>End Date</Label>
                       <Input
-                        type="date"
+                        type="month"
                         value={educationForm.endDate}
                         onChange={(e) =>
                           setEducationForm({
@@ -634,25 +600,28 @@ const BuildFolio = () => {
                         <Checkbox
                           id="current-study"
                           checked={educationForm.current}
-                          onCheckedChange={() =>
+                          onCheckedChange={(checked) =>
                             setEducationForm({
                               ...educationForm,
-                              current: !educationForm.current,
-                              endDate: "",
+                              current: checked === true,
+                              endDate: checked ? "" : educationForm.endDate,
                             })
                           }
                         />
-                        <Label htmlFor="current-study" className="text-sm">
-                          Currently studying
+                        <Label
+                          htmlFor="current-study"
+                          className="text-sm cursor-pointer"
+                        >
+                          Currently studying here
                         </Label>
                       </div>
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label>Description</Label>
                     <Textarea
-                      placeholder="Additional details about your education"
+                      placeholder="Achievements, coursework, activities..."
+                      rows={3}
                       value={educationForm.description}
                       onChange={(e) =>
                         setEducationForm({
@@ -660,13 +629,11 @@ const BuildFolio = () => {
                           description: e.target.value,
                         })
                       }
-                      className="resize-none"
                     />
                   </div>
-
                   <Button
-                    type="button"
                     onClick={addEducation}
+                    type="button"
                     variant="outline"
                     className="w-full"
                   >
@@ -679,36 +646,36 @@ const BuildFolio = () => {
               {education.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">
-                      Added Education ({education.length})
-                    </CardTitle>
+                    <CardTitle>Your Education ({education.length})</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {education.map((edu) => (
                       <div
                         key={edu.id}
-                        className="p-3 border border-border rounded-lg flex justify-between items-start"
+                        className="p-4 border rounded-lg space-y-1"
                       >
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm">
-                            {edu.degree} in {edu.field}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {edu.school}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {edu.startDate}
-                            {edu.endDate ? ` - ${edu.endDate}` : " - Present"}
-                          </p>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-semibold">{edu.degree} in {edu.field}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {edu.school}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {edu.startDate} - {edu.current ? "Present" : edu.endDate}
+                            </p>
+                            {edu.description && (
+                              <p className="text-sm mt-2">{edu.description}</p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeEducation(edu.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeEducation(edu.id!)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
                       </div>
                     ))}
                   </CardContent>
@@ -717,14 +684,14 @@ const BuildFolio = () => {
             </>
           )}
 
-          {/* Step 4: Experience */}
-          {currentStep === 4 && (
+          {/* Step 5: Experience */}
+          {currentStep === 5 && (
             <>
-              <Card>
+              <Card className="mb-4">
                 <CardHeader>
                   <CardTitle>Add Work Experience</CardTitle>
                   <CardDescription>
-                    Share your professional work history (optional)
+                    Share your professional work history (add at least 1)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -732,7 +699,7 @@ const BuildFolio = () => {
                     <div className="space-y-2">
                       <Label>Company *</Label>
                       <Input
-                        placeholder="Google"
+                        placeholder="Acme Inc."
                         value={experienceForm.company}
                         onChange={(e) =>
                           setExperienceForm({
@@ -745,7 +712,7 @@ const BuildFolio = () => {
                     <div className="space-y-2">
                       <Label>Position *</Label>
                       <Input
-                        placeholder="Senior Developer"
+                        placeholder="Software Engineer"
                         value={experienceForm.position}
                         onChange={(e) =>
                           setExperienceForm({
@@ -758,7 +725,7 @@ const BuildFolio = () => {
                     <div className="space-y-2">
                       <Label>Location</Label>
                       <Input
-                        placeholder="San Francisco, CA"
+                        placeholder="Lagos, Nigeria"
                         value={experienceForm.location}
                         onChange={(e) =>
                           setExperienceForm({
@@ -771,7 +738,7 @@ const BuildFolio = () => {
                     <div className="space-y-2">
                       <Label>Start Date *</Label>
                       <Input
-                        type="date"
+                        type="month"
                         value={experienceForm.startDate}
                         onChange={(e) =>
                           setExperienceForm({
@@ -784,7 +751,7 @@ const BuildFolio = () => {
                     <div className="space-y-2">
                       <Label>End Date</Label>
                       <Input
-                        type="date"
+                        type="month"
                         value={experienceForm.endDate}
                         onChange={(e) =>
                           setExperienceForm({
@@ -800,25 +767,28 @@ const BuildFolio = () => {
                         <Checkbox
                           id="current-job"
                           checked={experienceForm.current}
-                          onCheckedChange={() =>
+                          onCheckedChange={(checked) =>
                             setExperienceForm({
                               ...experienceForm,
-                              current: !experienceForm.current,
-                              endDate: "",
+                              current: checked === true,
+                              endDate: checked ? "" : experienceForm.endDate,
                             })
                           }
                         />
-                        <Label htmlFor="current-job" className="text-sm">
+                        <Label
+                          htmlFor="current-job"
+                          className="text-sm cursor-pointer"
+                        >
                           Currently working here
                         </Label>
                       </div>
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <Label>Description</Label>
                     <Textarea
-                      placeholder="Describe your responsibilities and achievements"
+                      placeholder="Your key responsibilities and achievements..."
+                      rows={3}
                       value={experienceForm.description}
                       onChange={(e) =>
                         setExperienceForm({
@@ -826,13 +796,11 @@ const BuildFolio = () => {
                           description: e.target.value,
                         })
                       }
-                      className="resize-none"
                     />
                   </div>
-
                   <Button
-                    type="button"
                     onClick={addExperience}
+                    type="button"
                     variant="outline"
                     className="w-full"
                   >
@@ -845,38 +813,37 @@ const BuildFolio = () => {
               {experience.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">
-                      Added Experience ({experience.length})
-                    </CardTitle>
+                    <CardTitle>Your Experience ({experience.length})</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {experience.map((exp) => (
                       <div
                         key={exp.id}
-                        className="p-3 border border-border rounded-lg flex justify-between items-start"
+                        className="p-4 border rounded-lg space-y-1"
                       >
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm">
-                            {exp.position} at {exp.company}
-                          </p>
-                          {exp.location && (
-                            <p className="text-xs text-muted-foreground">
-                              {exp.location}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-semibold">{exp.position}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {exp.company}
+                              {exp.location && ` • ${exp.location}`}
                             </p>
-                          )}
-                          <p className="text-xs text-muted-foreground">
-                            {exp.startDate}
-                            {exp.endDate ? ` - ${exp.endDate}` : " - Present"}
-                          </p>
+                            <p className="text-xs text-muted-foreground">
+                              {exp.startDate} - {exp.current ? "Present" : exp.endDate}
+                            </p>
+                            {exp.description && (
+                              <p className="text-sm mt-2">{exp.description}</p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExperience(exp.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeExperience(exp.id!)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
                       </div>
                     ))}
                   </CardContent>
@@ -885,9 +852,9 @@ const BuildFolio = () => {
             </>
           )}
 
-          {/* Step 5: Review */}
-          {currentStep === 5 && (
-            <div className="space-y-6">
+          {/* Step 6: Review & Submit */}
+          {currentStep === 6 && (
+            <div className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Review Your Profile</CardTitle>
@@ -898,21 +865,38 @@ const BuildFolio = () => {
                 <CardContent className="space-y-6">
                   <div>
                     <Label className="text-sm font-semibold mb-2 block">
-                      CV
+                      Industries ({selectedIndustries.length})
                     </Label>
-                    <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                      {cvFile?.name}
+                    <div className="flex flex-wrap gap-2">
+                      {selectedIndustries.map((industry) => (
+                        <Badge key={industry} variant="secondary">
+                          {industry}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
 
                   <div>
                     <Label className="text-sm font-semibold mb-2 block">
-                      Industries
+                      Personal Information
                     </Label>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedIndustries.map((industry) => (
-                        <Badge key={industry}>{industry}</Badge>
-                      ))}
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>
+                        <strong>Name:</strong> {personalInfo.fullName}
+                      </p>
+                      <p>
+                        <strong>Email:</strong> {personalInfo.email}
+                      </p>
+                      {personalInfo.phone && (
+                        <p>
+                          <strong>Phone:</strong> {personalInfo.phone}
+                        </p>
+                      )}
+                      {personalInfo.location && (
+                        <p>
+                          <strong>Location:</strong> {personalInfo.location}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -922,11 +906,8 @@ const BuildFolio = () => {
                         Skills ({skills.length})
                       </Label>
                       <div className="flex flex-wrap gap-2">
-                        {skills.map((skill, index) => (
-                          <Badge
-                            key={`review-skill-${index}-${skill}`}
-                            variant="secondary"
-                          >
+                        {skills.map((skill, idx) => (
+                          <Badge key={`${skill}-${idx}`} variant="outline">
                             {skill}
                           </Badge>
                         ))}
@@ -987,21 +968,18 @@ const BuildFolio = () => {
                 Back
               </Button>
             )}
-            {currentStep < 5 && (
+            {currentStep < 6 && (
               <Button
                 type="button"
                 onClick={() => setCurrentStep(currentStep + 1)}
                 className="gap-2"
-                disabled={
-                  currentStep === 1 &&
-                  (!cvFile || selectedIndustries.length < 1)
-                }
+                disabled={!canProceed()}
               >
                 Next
                 <ChevronRight className="h-4 w-4" />
               </Button>
             )}
-            {currentStep === 5 && (
+            {currentStep === 6 && (
               <Button
                 type="submit"
                 size="lg"
@@ -1009,7 +987,7 @@ const BuildFolio = () => {
                 disabled={isSubmitting}
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isSubmitting ? "Creating Folio..." : "Complete & Start Trial"}
+                {isSubmitting ? "Creating Profile..." : "Create Profile & Start Trial"}
               </Button>
             )}
           </div>
