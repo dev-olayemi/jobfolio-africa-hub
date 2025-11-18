@@ -486,13 +486,13 @@ const JobDetails = () => {
 
       {/* Application Review Modal */}
       <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <AlertCircle className="h-5 w-5 text-primary flex-shrink-0" />
               Review Your Application
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Before submitting, make sure everything is correct
             </DialogDescription>
           </DialogHeader>
@@ -607,12 +607,12 @@ const JobDetails = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
                 <Button
                   variant="outline"
                   onClick={() => setShowReviewModal(false)}
                   disabled={isApplying}
-                  className="flex-1"
+                  className="flex-1 text-sm sm:text-base"
                 >
                   Review Profile
                 </Button>
@@ -620,7 +620,7 @@ const JobDetails = () => {
                   onClick={handleConfirmApply}
                   disabled={isApplying}
                   size="lg"
-                  className="flex-1"
+                  className="flex-1 text-sm sm:text-base"
                 >
                   {isApplying ? (
                     <>

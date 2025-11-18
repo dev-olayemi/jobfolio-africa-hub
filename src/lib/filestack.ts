@@ -4,8 +4,14 @@
  * Handles profile picture uploads with automatic resizing and optimization
  */
 
-const FILESTACK_API_KEY =
-  import.meta.env.VITE_FILESTACK_API_KEY || "AVcRfQz9YSQuF6JtXlFsQz";
+const FILESTACK_API_KEY = import.meta.env.VITE_FILESTACK_API_KEY;
+
+if (!FILESTACK_API_KEY) {
+  console.warn(
+    "Filestack API key not configured. Set VITE_FILESTACK_API_KEY environment variable."
+  );
+}
+
 const FILESTACK_CDN = "https://cdn.filestackcontent.com";
 
 export interface FilestackResponse {
@@ -52,6 +58,12 @@ export function getProfilePictureUrl(handle: string): string {
  */
 export async function uploadProfilePicture(): Promise<FilestackResponse | null> {
   try {
+    if (!FILESTACK_API_KEY) {
+      throw new Error(
+        "Filestack API key not configured. Please contact support."
+      );
+    }
+
     // Check if SDK is already loaded
     if ((window as any).filestack) {
       return openFilestackPicker();
