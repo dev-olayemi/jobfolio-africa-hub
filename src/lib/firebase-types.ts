@@ -19,6 +19,45 @@ export interface UserProfile {
   twitter?: string;
   workStatus?: "open" | "not-open" | "employed";
   title?: string;
+  
+  // Account Type Information
+  accountType: "jobseeker" | "recruiter" | "company" | "employer";
+  accountStatus: "pending" | "approved" | "rejected" | "active";
+  
+  // Recruiter Specific
+  recruiterDetails?: {
+    companyName: string;
+    experience: string;
+    specialization: string[];
+    licenseNumber?: string;
+    licenseDocument?: string;
+    notes?: string;
+  };
+  
+  // Company Specific
+  companyDetails?: {
+    companyName: string;
+    website?: string;
+    industry: string;
+    companySize: string;
+    description: string;
+    logo?: string;
+    registrationNumber: string;
+    taxId?: string;
+    address: string;
+    contactPerson: string;
+    verified: boolean;
+  };
+  
+  // Employer Specific (individual employer)
+  employerDetails?: {
+    businessName: string;
+    businessType: string;
+    website?: string;
+    description?: string;
+    yearsInBusiness: string;
+  };
+  
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -99,6 +138,20 @@ export interface Job {
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  
+  // Employer Info
+  postedById: string;
+  postedByType: "recruiter" | "company" | "employer";
+  
+  // Job Specifics
+  jobType: "full-time" | "part-time" | "contract" | "freelance" | "internship";
+  workMode: "remote" | "onsite" | "hybrid";
+  qualifications: string[];
+  benefits?: string[];
+  minExperience?: string;
+  maxExperience?: string;
+  educationLevel?: string;
+  
   // Metrics
   views?: number;
   likes?: number;
