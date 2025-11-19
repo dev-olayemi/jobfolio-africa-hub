@@ -714,27 +714,44 @@ const Auth = () => {
                 </Button>
               </form>
 
-              <div className="mt-6 border-t border-border pt-4">
-                <p className="text-center text-sm text-muted-foreground mb-3">
-                  {isSignUp
-                    ? "Already have an account?"
-                    : "Don't have an account?"}
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setIsSignUp(!isSignUp);
-                    setFirstName("");
-                    setLastName("");
-                    setCountry(undefined);
-                    setShowCountryPicker(false);
-                  }}
-                >
-                  {isSignUp ? "Sign In Instead" : "Create New Account"}
-                </Button>
-              </div>
+              {/* Only show toggle if not coming from account type selector */}
+              {!accountTypeFromLocation && (
+                <div className="mt-6 border-t border-border pt-4">
+                  <p className="text-center text-sm text-muted-foreground mb-3">
+                    {isSignUp
+                      ? "Already have an account?"
+                      : "Don't have an account?"}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setIsSignUp(!isSignUp);
+                      setFirstName("");
+                      setLastName("");
+                      setCountry(undefined);
+                      setShowCountryPicker(false);
+                    }}
+                  >
+                    {isSignUp ? "Sign In Instead" : "Create New Account"}
+                  </Button>
+                </div>
+              )}
+
+              {/* Show sign in link when coming from account type selector */}
+              {accountTypeFromLocation && !isSignUp && (
+                <div className="mt-6 text-center">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-sm"
+                    onClick={() => navigate("/auth")}
+                  >
+                    Already have an account? Sign In
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
