@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { downloadCVPDF } from "@/lib/cvGenerator";
-import { uploadProfilePicture } from "@/lib/filestack";
+import { uploadProfileImage } from "@/lib/imageUpload";
 import { toast } from "sonner";
 
 const BADGE_DEFINITIONS = [
@@ -145,30 +145,48 @@ const Profile = () => {
   const handleUploadProfilePicture = async () => {
     setIsUploadingPicture(true);
     try {
-      const response = await uploadProfilePicture();
-      if (response && user) {
-        // Save both the handle and optimized URL to Firestore
-        const profileRef = doc(db, "profiles", user.uid);
+      // Create a file input element
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
 
-        // Store the raw CDN URL as backup
-        const rawUrl = `https://cdn.filestackcontent.com/${response.handle}`;
+      input.onchange = async (e: Event) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) {
+          setIsUploadingPicture(false);
+          return;
+        }
 
-        await updateDoc(profileRef, {
-          profilePictureUrl: rawUrl,
-        });
+        try {
+          const result = await uploadProfileImage(file);
 
-        setProfilePictureUrl(rawUrl);
-        toast.success("Profile picture updated successfully!");
-        window.dispatchEvent(new CustomEvent("refreshUserData"));
-      }
+          if (result.success && result.data && user) {
+            const profileRef = doc(db, "profiles", user.uid);
+            await updateDoc(profileRef, {
+              profilePictureUrl: result.data,
+            });
+
+            setProfilePictureUrl(result.data);
+            toast.success("Profile picture updated successfully!");
+            window.dispatchEvent(new CustomEvent("refreshUserData"));
+          } else {
+            toast.error(result.error || "Failed to upload profile picture");
+          }
+        } catch (error) {
+          console.error("Error uploading profile picture:", error);
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to upload profile picture"
+          );
+        } finally {
+          setIsUploadingPicture(false);
+        }
+      };
+
+      input.click();
     } catch (error) {
-      console.error("Error uploading profile picture:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to upload profile picture"
-      );
-    } finally {
+      console.error("Error opening file dialog:", error);
       setIsUploadingPicture(false);
     }
   };
@@ -284,21 +302,6 @@ const Profile = () => {
                     <AvatarImage
                       src={profilePictureUrl}
                       alt={profile.firstName}
-                      onError={(e) => {
-                        // If the optimized URL fails, try the raw URL
-                        const img = e.target as HTMLImageElement;
-                        if (
-                          profilePictureUrl &&
-                          profilePictureUrl.includes("resize")
-                        ) {
-                          // Extract handle from URL and try raw version
-                          const handleMatch =
-                            profilePictureUrl.match(/\/([A-Za-z0-9]+)$/);
-                          if (handleMatch) {
-                            img.src = `https://cdn.filestackcontent.com/${handleMatch[1]}`;
-                          }
-                        }
-                      }}
                     />
                     <AvatarFallback className="text-5xl bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold rounded-2xl">
                       {profile.firstName[0]}

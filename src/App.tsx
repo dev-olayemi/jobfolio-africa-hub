@@ -10,6 +10,7 @@ import JobDetails from "./pages/JobDetails";
 import Profile from "./pages/Profile";
 import BuildFolio from "./pages/BuildFolio";
 import Auth from "./pages/Auth";
+import Login from "./pages/Login";
 import AccountTypeSelection from "./pages/AccountTypeSelection";
 import Payment from "./pages/Payment";
 import About from "./pages/About";
@@ -18,6 +19,11 @@ import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
 import Industries from "./pages/Industries";
 import AdminJobs from "./pages/AdminJobs";
+import PostJob from "./pages/PostJob";
+import ManageJobs from "./pages/ManageJobs";
+import JobApplications from "./pages/JobApplications";
+import MyApplications from "./pages/MyApplications";
+import SavedJobs from "./pages/SavedJobs";
 import SettingsIndex from "./pages/settings/SettingsIndex";
 import EmailSettings from "./pages/settings/EmailSettings";
 import NotificationSettings from "./pages/settings/NotificationSettings";
@@ -39,8 +45,17 @@ const App = () => (
               element={<AccountTypeSelection />}
             />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/jobs/:id" element={<JobDetails />} />
+            <Route path="/post-job" element={<PostJob />} />
+            <Route path="/manage-jobs" element={<ManageJobs />} />
+            <Route
+              path="/job/:jobId/applications"
+              element={<JobApplications />}
+            />
+            <Route path="/my-applications" element={<MyApplications />} />
+            <Route path="/saved-jobs" element={<SavedJobs />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/build-folio" element={<BuildFolio />} />
             <Route path="/payment" element={<Payment />} />

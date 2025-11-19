@@ -32,6 +32,7 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
+  Github,
 } from "lucide-react";
 
 const COUNTRIES = [
@@ -95,7 +96,12 @@ const Auth = () => {
   const [employerBusinessType, setEmployerBusinessType] = useState("");
   const [employerYearsInBusiness, setEmployerYearsInBusiness] = useState("");
 
-  const { signIn, signUp } = useAuth();
+  // Forgot password
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const { signIn, signUp, resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,6 +205,29 @@ const Auth = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetEmail) {
+      toast.error("Please enter your email address");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await resetPassword(resetEmail);
+      toast.success("Password reset email sent! Check your inbox.");
+      setShowForgotPassword(false);
+      setResetEmail("");
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      if (error.code === "auth/user-not-found") {
+        toast.error("No account found with this email");
+      } else {
+        toast.error(error.message || "Failed to send reset email");
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -356,534 +385,384 @@ const Auth = () => {
                       : "Build your hiring team and grow"}
                   </CardDescription>
                 </div>
-              ) : showSignIn ? (
-                <div>
-                  <CardTitle className="text-2xl">Welcome Back</CardTitle>
-                  <CardDescription>
-                    Sign in to continue to your dashboard
-                  </CardDescription>
-                </div>
               ) : (
                 <div>
-                  <CardTitle className="text-2xl">
-                    {isSignUp ? "Create Account" : "Welcome Back"}
-                  </CardTitle>
+                  <CardTitle className="text-2xl">Create Account</CardTitle>
                   <CardDescription>
-                    {isSignUp
-                      ? "Join JobFolio to access African job opportunities"
-                      : "Sign in to continue to your dashboard"}
+                    Join JobFolio to access African job opportunities
                   </CardDescription>
                 </div>
               )}
             </CardHeader>
             <CardContent className="pt-0">
               <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Sign-in form - simple email/password only */}
-                {showSignIn ? (
-                  <>
+                {/* Sign-up form - full form with role-specific fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName" className="text-sm font-medium">
+                      First Name
+                    </Label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="focus:ring-2 focus:ring-primary h-10"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName" className="text-sm font-medium">
+                      Last Name
+                    </Label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="focus:ring-2 focus:ring-primary h-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Country Selection */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    Country (Important for job filtering)
+                  </Label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowCountryPicker(!showCountryPicker)}
+                      className="w-full rounded-md border border-input px-3 py-2 bg-background text-left text-sm hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
+                    >
+                      {country ? (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          {country}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Select your country...
+                        </span>
+                      )}
+                    </button>
+
+                    {showCountryPicker && (
+                      <div className="absolute z-50 top-full mt-1 w-full bg-card border border-input rounded-md shadow-lg p-2 max-h-60 overflow-y-auto">
+                        {COUNTRIES.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => {
+                              setCountry(c);
+                              setShowCountryPicker(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                              country === c
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-muted"
+                            }`}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {country && (
+                    <Badge variant="secondary" className="w-fit gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {country} selected
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Recruiter-specific fields */}
+                {accountType === "recruiter" && (
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <h3 className="font-semibold text-sm text-foreground">
+                      Recruiter Information
+                    </h3>
+
                     <div className="space-y-2">
-                      <Label
-                        htmlFor="signin-email"
-                        className="text-sm font-medium"
-                      >
-                        Email Address
+                      <Label htmlFor="recruiterCompany" className="text-sm">
+                        Company Name *
                       </Label>
                       <Input
-                        id="signin-email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="focus:ring-2 focus:ring-primary h-10"
+                        id="recruiterCompany"
+                        type="text"
+                        placeholder="Your recruitment company"
+                        value={recruiterCompany}
+                        onChange={(e) => setRecruiterCompany(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="recruiterExperience" className="text-sm">
+                        Years of Experience *
+                      </Label>
+                      <Select
+                        value={recruiterExperience}
+                        onValueChange={setRecruiterExperience}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select experience" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0-2">0-2 years</SelectItem>
+                          <SelectItem value="2-5">2-5 years</SelectItem>
+                          <SelectItem value="5-10">5-10 years</SelectItem>
+                          <SelectItem value="10+">10+ years</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="recruiterSpecializations"
+                        className="text-sm"
+                      >
+                        Specializations (comma-separated)
+                      </Label>
+                      <Textarea
+                        id="recruiterSpecializations"
+                        placeholder="e.g., Technology, Finance, Healthcare"
+                        value={recruiterSpecializations}
+                        onChange={(e) =>
+                          setRecruiterSpecializations(e.target.value)
+                        }
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="recruiterLicense" className="text-sm">
+                        License Number *
+                      </Label>
+                      <Input
+                        id="recruiterLicense"
+                        type="text"
+                        placeholder="Your recruiter license"
+                        value={recruiterLicense}
+                        onChange={(e) => setRecruiterLicense(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Company-specific fields */}
+                {accountType === "company" && (
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <h3 className="font-semibold text-sm text-foreground">
+                      Company Information
+                    </h3>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="companyName" className="text-sm">
+                        Company Name *
+                      </Label>
+                      <Input
+                        id="companyName"
+                        type="text"
+                        placeholder="Your company name"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="companyWebsite" className="text-sm">
+                        Website *
+                      </Label>
+                      <Input
+                        id="companyWebsite"
+                        type="url"
+                        placeholder="https://company.com"
+                        value={companyWebsite}
+                        onChange={(e) => setCompanyWebsite(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="companyIndustry" className="text-sm">
+                        Industry *
+                      </Label>
+                      <Input
+                        id="companyIndustry"
+                        type="text"
+                        placeholder="e.g., Technology, Finance"
+                        value={companyIndustry}
+                        onChange={(e) => setCompanyIndustry(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="companySize" className="text-sm">
+                        Company Size
+                      </Label>
+                      <Select
+                        value={companySize}
+                        onValueChange={setCompanySize}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select company size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1-10">1-10 employees</SelectItem>
+                          <SelectItem value="11-50">11-50 employees</SelectItem>
+                          <SelectItem value="51-200">
+                            51-200 employees
+                          </SelectItem>
+                          <SelectItem value="201-500">
+                            201-500 employees
+                          </SelectItem>
+                          <SelectItem value="500+">500+ employees</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="companyRegistration" className="text-sm">
+                        Registration Number *
+                      </Label>
+                      <Input
+                        id="companyRegistration"
+                        type="text"
+                        placeholder="Company registration number"
+                        value={companyRegistration}
+                        onChange={(e) => setCompanyRegistration(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Employer-specific fields */}
+                {accountType === "employer" && (
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <h3 className="font-semibold text-sm text-foreground">
+                      Business Information
+                    </h3>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="employerBusinessName" className="text-sm">
+                        Business Name *
+                      </Label>
+                      <Input
+                        id="employerBusinessName"
+                        type="text"
+                        placeholder="Your business name"
+                        value={employerBusinessName}
+                        onChange={(e) =>
+                          setEmployerBusinessName(e.target.value)
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="employerBusinessType" className="text-sm">
+                        Business Type *
+                      </Label>
+                      <Input
+                        id="employerBusinessType"
+                        type="text"
+                        placeholder="e.g., Tech Startup, Manufacturing"
+                        value={employerBusinessType}
+                        onChange={(e) =>
+                          setEmployerBusinessType(e.target.value)
+                        }
                         required
                       />
                     </div>
 
                     <div className="space-y-2">
                       <Label
-                        htmlFor="signin-password"
-                        className="text-sm font-medium"
+                        htmlFor="employerYearsInBusiness"
+                        className="text-sm"
                       >
-                        Password
+                        Years in Business *
                       </Label>
-                      <div className="relative">
-                        <Input
-                          id="signin-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="focus:ring-2 focus:ring-primary h-10 pr-10"
-                          minLength={6}
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="text-xs h-auto p-0"
-                        onClick={() => {
-                          toast.info("Contact support for password reset");
-                        }}
+                      <Select
+                        value={employerYearsInBusiness}
+                        onValueChange={setEmployerYearsInBusiness}
                       >
-                        Forgot password?
-                      </Button>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select years" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0-1">Less than 1 year</SelectItem>
+                          <SelectItem value="1-3">1-3 years</SelectItem>
+                          <SelectItem value="3-5">3-5 years</SelectItem>
+                          <SelectItem value="5-10">5-10 years</SelectItem>
+                          <SelectItem value="10+">10+ years</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                  </div>
+                )}
 
-                    <Button
-                      type="submit"
-                      className="w-full h-11 text-base font-semibold mt-2"
-                      disabled={loading}
+                {/* Email/Password fields - only for signup */}
+                <div>
+                  <Label htmlFor="signup-email" className="text-sm font-medium">
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10 focus:ring-2 focus:ring-primary h-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="signup-password"
+                    className="text-sm font-medium"
+                  >
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10 pr-10 focus:ring-2 focus:ring-primary h-10"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {loading && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
                       )}
-                      Sign In
-                    </Button>
-
-                    <div className="mt-6 pt-4 border-t border-border text-center">
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Don't have an account?{" "}
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="p-0 h-auto text-primary font-semibold"
-                          onClick={() => {
-                            setShowSignIn(false);
-                            setIsSignUp(true);
-                            setEmail("");
-                            setPassword("");
-                            setShowPassword(false);
-                          }}
-                        >
-                          Create one here
-                        </Button>
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Sign-up form - full form with role-specific fields */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="firstName"
-                          className="text-sm font-medium"
-                        >
-                          First Name
-                        </Label>
-                        <Input
-                          id="firstName"
-                          type="text"
-                          placeholder="John"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          className="focus:ring-2 focus:ring-primary h-10"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="lastName"
-                          className="text-sm font-medium"
-                        >
-                          Last Name
-                        </Label>
-                        <Input
-                          id="lastName"
-                          type="text"
-                          placeholder="Doe"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          className="focus:ring-2 focus:ring-primary h-10"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Country Selection */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        Country (Important for job filtering)
-                      </Label>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowCountryPicker(!showCountryPicker)
-                          }
-                          className="w-full rounded-md border border-input px-3 py-2 bg-background text-left text-sm hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
-                        >
-                          {country ? (
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-primary" />
-                              {country}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              Select your country...
-                            </span>
-                          )}
-                        </button>
-
-                        {showCountryPicker && (
-                          <div className="absolute z-50 top-full mt-1 w-full bg-card border border-input rounded-md shadow-lg p-2 max-h-60 overflow-y-auto">
-                            {COUNTRIES.map((c) => (
-                              <button
-                                key={c}
-                                type="button"
-                                onClick={() => {
-                                  setCountry(c);
-                                  setShowCountryPicker(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                                  country === c
-                                    ? "bg-primary text-primary-foreground"
-                                    : "hover:bg-muted"
-                                }`}
-                              >
-                                {c}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      {country && (
-                        <Badge variant="secondary" className="w-fit gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {country} selected
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Recruiter-specific fields */}
-                    {accountType === "recruiter" && (
-                      <div className="space-y-4 pt-4 border-t border-border">
-                        <h3 className="font-semibold text-sm text-foreground">
-                          Recruiter Information
-                        </h3>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="recruiterCompany" className="text-sm">
-                            Company Name *
-                          </Label>
-                          <Input
-                            id="recruiterCompany"
-                            type="text"
-                            placeholder="Your recruitment company"
-                            value={recruiterCompany}
-                            onChange={(e) =>
-                              setRecruiterCompany(e.target.value)
-                            }
-                            required
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="recruiterExperience"
-                            className="text-sm"
-                          >
-                            Years of Experience *
-                          </Label>
-                          <Select
-                            value={recruiterExperience}
-                            onValueChange={setRecruiterExperience}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select experience" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0-2">0-2 years</SelectItem>
-                              <SelectItem value="2-5">2-5 years</SelectItem>
-                              <SelectItem value="5-10">5-10 years</SelectItem>
-                              <SelectItem value="10+">10+ years</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="recruiterSpecializations"
-                            className="text-sm"
-                          >
-                            Specializations (comma-separated)
-                          </Label>
-                          <Textarea
-                            id="recruiterSpecializations"
-                            placeholder="e.g., Technology, Finance, Healthcare"
-                            value={recruiterSpecializations}
-                            onChange={(e) =>
-                              setRecruiterSpecializations(e.target.value)
-                            }
-                            rows={2}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="recruiterLicense" className="text-sm">
-                            License Number *
-                          </Label>
-                          <Input
-                            id="recruiterLicense"
-                            type="text"
-                            placeholder="Your recruiter license"
-                            value={recruiterLicense}
-                            onChange={(e) =>
-                              setRecruiterLicense(e.target.value)
-                            }
-                            required
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Company-specific fields */}
-                    {accountType === "company" && (
-                      <div className="space-y-4 pt-4 border-t border-border">
-                        <h3 className="font-semibold text-sm text-foreground">
-                          Company Information
-                        </h3>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="companyName" className="text-sm">
-                            Company Name *
-                          </Label>
-                          <Input
-                            id="companyName"
-                            type="text"
-                            placeholder="Your company name"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                            required
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="companyWebsite" className="text-sm">
-                            Website *
-                          </Label>
-                          <Input
-                            id="companyWebsite"
-                            type="url"
-                            placeholder="https://company.com"
-                            value={companyWebsite}
-                            onChange={(e) => setCompanyWebsite(e.target.value)}
-                            required
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="companyIndustry" className="text-sm">
-                            Industry *
-                          </Label>
-                          <Input
-                            id="companyIndustry"
-                            type="text"
-                            placeholder="e.g., Technology, Finance"
-                            value={companyIndustry}
-                            onChange={(e) => setCompanyIndustry(e.target.value)}
-                            required
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="companySize" className="text-sm">
-                            Company Size
-                          </Label>
-                          <Select
-                            value={companySize}
-                            onValueChange={setCompanySize}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select company size" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1-10">
-                                1-10 employees
-                              </SelectItem>
-                              <SelectItem value="11-50">
-                                11-50 employees
-                              </SelectItem>
-                              <SelectItem value="51-200">
-                                51-200 employees
-                              </SelectItem>
-                              <SelectItem value="201-500">
-                                201-500 employees
-                              </SelectItem>
-                              <SelectItem value="500+">
-                                500+ employees
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="companyRegistration"
-                            className="text-sm"
-                          >
-                            Registration Number *
-                          </Label>
-                          <Input
-                            id="companyRegistration"
-                            type="text"
-                            placeholder="Company registration number"
-                            value={companyRegistration}
-                            onChange={(e) =>
-                              setCompanyRegistration(e.target.value)
-                            }
-                            required
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Employer-specific fields */}
-                    {accountType === "employer" && (
-                      <div className="space-y-4 pt-4 border-t border-border">
-                        <h3 className="font-semibold text-sm text-foreground">
-                          Business Information
-                        </h3>
-
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="employerBusinessName"
-                            className="text-sm"
-                          >
-                            Business Name *
-                          </Label>
-                          <Input
-                            id="employerBusinessName"
-                            type="text"
-                            placeholder="Your business name"
-                            value={employerBusinessName}
-                            onChange={(e) =>
-                              setEmployerBusinessName(e.target.value)
-                            }
-                            required
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="employerBusinessType"
-                            className="text-sm"
-                          >
-                            Business Type *
-                          </Label>
-                          <Input
-                            id="employerBusinessType"
-                            type="text"
-                            placeholder="e.g., Tech Startup, Manufacturing"
-                            value={employerBusinessType}
-                            onChange={(e) =>
-                              setEmployerBusinessType(e.target.value)
-                            }
-                            required
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="employerYearsInBusiness"
-                            className="text-sm"
-                          >
-                            Years in Business *
-                          </Label>
-                          <Select
-                            value={employerYearsInBusiness}
-                            onValueChange={setEmployerYearsInBusiness}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select years" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0-1">
-                                Less than 1 year
-                              </SelectItem>
-                              <SelectItem value="1-3">1-3 years</SelectItem>
-                              <SelectItem value="3-5">3-5 years</SelectItem>
-                              <SelectItem value="5-10">5-10 years</SelectItem>
-                              <SelectItem value="10+">10+ years</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Email/Password fields - only for signup (sign-in has separate ones above) */}
-                {!showSignIn && (
-                  <>
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="signup-email"
-                        className="text-sm font-medium"
-                      >
-                        Email Address
-                      </Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-email"
-                          type="email"
-                          placeholder="you@example.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="pl-10 focus:ring-2 focus:ring-primary h-10"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="signup-password"
-                        className="text-sm font-medium"
-                      >
-                        Password
-                      </Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="pl-10 pr-10 focus:ring-2 focus:ring-primary h-10"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
+                    </button>
+                  </div>
+                </div>
 
                 <Button
                   type="submit"
@@ -891,40 +770,30 @@ const Auth = () => {
                   disabled={loading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {showSignIn
-                    ? "Sign In"
-                    : isSignUp
-                    ? "Create Account"
-                    : "Sign In"}
+                  Create Account
                 </Button>
               </form>
 
-              {/* Only show toggle if not coming from account type selector */}
-              {!accountTypeFromLocation && (
+              {/* Show login link when viewing role-specific signup form */}
+              {accountTypeFromLocation && isSignUp && (
                 <div className="mt-6 border-t border-border pt-4">
                   <p className="text-center text-sm text-muted-foreground mb-3">
-                    {isSignUp
-                      ? "Already have an account?"
-                      : "Don't have an account?"}
+                    Already have a {accountType} account?
                   </p>
                   <Button
                     type="button"
                     variant="outline"
                     className="w-full"
                     onClick={() => {
-                      setIsSignUp(!isSignUp);
-                      setFirstName("");
-                      setLastName("");
-                      setCountry(undefined);
-                      setShowCountryPicker(false);
+                      navigate("/login", { state: { accountType } });
                     }}
                   >
-                    {isSignUp ? "Sign In Instead" : "Create New Account"}
+                    Login as {capitalizeFirst(accountType || "user")}
                   </Button>
                 </div>
               )}
 
-              {/* Show sign in link when coming from account type selector */}
+              {/* Show sign in link when coming from account type selector but showing signup */}
               {accountTypeFromLocation && !isSignUp && (
                 <div className="mt-6 text-center">
                   <Button
@@ -941,8 +810,67 @@ const Auth = () => {
           </Card>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <Card className="w-full max-w-sm">
+            <CardHeader>
+              <CardTitle>Reset Password</CardTitle>
+              <CardDescription>
+                Enter your email address and we'll send you a link to reset your
+                password.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email" className="text-sm font-medium">
+                  Email Address
+                </Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetEmail("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1"
+                  onClick={handleResetPassword}
+                  disabled={resetLoading}
+                >
+                  {resetLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Send Reset Link
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </Layout>
   );
+};
+
+// Helper function to capitalize first letter
+const capitalizeFirst = (str: string) => {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
 export default Auth;
