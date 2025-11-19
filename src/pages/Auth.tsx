@@ -94,13 +94,22 @@ const Auth = () => {
             return;
           }
         } else if (accountType === "company") {
-          if (!companyName || !companyWebsite || !companyIndustry || !companyRegistration) {
+          if (
+            !companyName ||
+            !companyWebsite ||
+            !companyIndustry ||
+            !companyRegistration
+          ) {
             toast.error("Please fill in all company fields");
             setLoading(false);
             return;
           }
         } else if (accountType === "employer") {
-          if (!employerBusinessName || !employerBusinessType || !employerYearsInBusiness) {
+          if (
+            !employerBusinessName ||
+            !employerBusinessType ||
+            !employerYearsInBusiness
+          ) {
             toast.error("Please fill in all employer fields");
             setLoading(false);
             return;
@@ -112,26 +121,36 @@ const Auth = () => {
             ? {
                 companyName: recruiterCompany,
                 experience: recruiterExperience,
-                specialization: recruiterSpecializations.split(",").map((s) => s.trim()),
+                specialization: recruiterSpecializations
+                  .split(",")
+                  .map((s) => s.trim()),
                 licenseNumber: recruiterLicense,
               }
             : accountType === "company"
-              ? {
-                  companyName,
-                  website: companyWebsite,
-                  industry: companyIndustry,
-                  companySize,
-                  registrationNumber: companyRegistration,
-                }
-              : accountType === "employer"
-                ? {
-                    businessName: employerBusinessName,
-                    businessType: employerBusinessType,
-                    yearsInBusiness: employerYearsInBusiness,
-                  }
-                : undefined;
+            ? {
+                companyName,
+                website: companyWebsite,
+                industry: companyIndustry,
+                companySize,
+                registrationNumber: companyRegistration,
+              }
+            : accountType === "employer"
+            ? {
+                businessName: employerBusinessName,
+                businessType: employerBusinessType,
+                yearsInBusiness: employerYearsInBusiness,
+              }
+            : undefined;
 
-        await signUp(email, password, firstName, lastName, country, accountType || "jobseeker", roleDetails);
+        await signUp(
+          email,
+          password,
+          firstName,
+          lastName,
+          country,
+          accountType || "jobseeker",
+          roleDetails
+        );
         toast.success("Account created successfully!");
         navigate(accountType === "jobseeker" ? "/build-folio" : "/profile");
       } else {
@@ -183,15 +202,15 @@ const Auth = () => {
                     {accountType === "recruiter"
                       ? "Recruiter Registration"
                       : accountType === "company"
-                        ? "Company Registration"
-                        : "Employer Registration"}
+                      ? "Company Registration"
+                      : "Employer Registration"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {accountType === "recruiter"
                       ? "Help job seekers find their perfect roles"
                       : accountType === "company"
-                        ? "Post jobs and find top talent"
-                        : "Build your hiring team and grow"}
+                      ? "Post jobs and find top talent"
+                      : "Build your hiring team and grow"}
                   </p>
                 </div>
               )}
@@ -264,8 +283,8 @@ const Auth = () => {
                     {accountType === "recruiter"
                       ? "Help job seekers connect with opportunities"
                       : accountType === "company"
-                        ? "Post jobs and find top talent"
-                        : "Build your hiring team and grow"}
+                      ? "Post jobs and find top talent"
+                      : "Build your hiring team and grow"}
                   </CardDescription>
                 </div>
               ) : (
@@ -282,7 +301,10 @@ const Auth = () => {
               )}
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
+              >
                 {isSignUp && (
                   <>
                     <div className="grid grid-cols-2 gap-3">
@@ -388,13 +410,18 @@ const Auth = () => {
                             type="text"
                             placeholder="Your recruitment company"
                             value={recruiterCompany}
-                            onChange={(e) => setRecruiterCompany(e.target.value)}
+                            onChange={(e) =>
+                              setRecruiterCompany(e.target.value)
+                            }
                             required
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="recruiterExperience" className="text-sm">
+                          <Label
+                            htmlFor="recruiterExperience"
+                            className="text-sm"
+                          >
                             Years of Experience *
                           </Label>
                           <Select
@@ -414,7 +441,10 @@ const Auth = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="recruiterSpecializations" className="text-sm">
+                          <Label
+                            htmlFor="recruiterSpecializations"
+                            className="text-sm"
+                          >
                             Specializations (comma-separated)
                           </Label>
                           <Textarea
@@ -437,7 +467,9 @@ const Auth = () => {
                             type="text"
                             placeholder="Your recruiter license"
                             value={recruiterLicense}
-                            onChange={(e) => setRecruiterLicense(e.target.value)}
+                            onChange={(e) =>
+                              setRecruiterLicense(e.target.value)
+                            }
                             required
                           />
                         </div>
@@ -497,22 +529,38 @@ const Auth = () => {
                           <Label htmlFor="companySize" className="text-sm">
                             Company Size
                           </Label>
-                          <Select value={companySize} onValueChange={setCompanySize}>
+                          <Select
+                            value={companySize}
+                            onValueChange={setCompanySize}
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="Select company size" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="1-10">1-10 employees</SelectItem>
-                              <SelectItem value="11-50">11-50 employees</SelectItem>
-                              <SelectItem value="51-200">51-200 employees</SelectItem>
-                              <SelectItem value="201-500">201-500 employees</SelectItem>
-                              <SelectItem value="500+">500+ employees</SelectItem>
+                              <SelectItem value="1-10">
+                                1-10 employees
+                              </SelectItem>
+                              <SelectItem value="11-50">
+                                11-50 employees
+                              </SelectItem>
+                              <SelectItem value="51-200">
+                                51-200 employees
+                              </SelectItem>
+                              <SelectItem value="201-500">
+                                201-500 employees
+                              </SelectItem>
+                              <SelectItem value="500+">
+                                500+ employees
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="companyRegistration" className="text-sm">
+                          <Label
+                            htmlFor="companyRegistration"
+                            className="text-sm"
+                          >
                             Registration Number *
                           </Label>
                           <Input
@@ -537,7 +585,10 @@ const Auth = () => {
                         </h3>
 
                         <div className="space-y-2">
-                          <Label htmlFor="employerBusinessName" className="text-sm">
+                          <Label
+                            htmlFor="employerBusinessName"
+                            className="text-sm"
+                          >
                             Business Name *
                           </Label>
                           <Input
@@ -553,7 +604,10 @@ const Auth = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="employerBusinessType" className="text-sm">
+                          <Label
+                            htmlFor="employerBusinessType"
+                            className="text-sm"
+                          >
                             Business Type *
                           </Label>
                           <Input
@@ -569,7 +623,10 @@ const Auth = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="employerYearsInBusiness" className="text-sm">
+                          <Label
+                            htmlFor="employerYearsInBusiness"
+                            className="text-sm"
+                          >
                             Years in Business *
                           </Label>
                           <Select
@@ -580,7 +637,9 @@ const Auth = () => {
                               <SelectValue placeholder="Select years" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="0-1">Less than 1 year</SelectItem>
+                              <SelectItem value="0-1">
+                                Less than 1 year
+                              </SelectItem>
                               <SelectItem value="1-3">1-3 years</SelectItem>
                               <SelectItem value="3-5">3-5 years</SelectItem>
                               <SelectItem value="5-10">5-10 years</SelectItem>

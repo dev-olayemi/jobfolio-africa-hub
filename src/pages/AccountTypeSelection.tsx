@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
-  Briefcase,
-  Users,
-  Building2,
-  User,
-  ArrowRight,
-} from "lucide-react";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Briefcase, Users, Building2, User, ArrowRight } from "lucide-react";
 
 type AccountType = "jobseeker" | "recruiter" | "company" | "employer" | null;
 
@@ -94,7 +94,8 @@ const AccountTypeSelection = () => {
               Choose Your Account Type
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Select the account type that best fits your needs. You can switch account types later.
+              Select the account type that best fits your needs. You can switch
+              account types later.
             </p>
           </div>
 
@@ -125,7 +126,10 @@ const AccountTypeSelection = () => {
                   <CardContent>
                     <ul className="space-y-2">
                       {type.details.map((detail, idx) => (
-                        <li key={idx} className="flex items-center gap-2 text-sm">
+                        <li
+                          key={idx}
+                          className="flex items-center gap-2 text-sm"
+                        >
                           <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                           {detail}
                         </li>
@@ -146,11 +150,7 @@ const AccountTypeSelection = () => {
           </div>
 
           <div className="flex justify-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => navigate("/")}
-              size="lg"
-            >
+            <Button variant="outline" onClick={() => navigate("/")} size="lg">
               Go Back
             </Button>
             <Button

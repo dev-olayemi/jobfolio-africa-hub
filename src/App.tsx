@@ -31,7 +31,10 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/select-account-type" element={<AccountTypeSelection />} />
+            <Route
+              path="/select-account-type"
+              element={<AccountTypeSelection />}
+            />
             <Route path="/auth" element={<Auth />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/jobs/:id" element={<JobDetails />} />

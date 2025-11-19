@@ -233,7 +233,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     firstName: string,
     lastName: string,
     country?: string,
-    accountType: "jobseeker" | "recruiter" | "company" | "employer" = "jobseeker",
+    accountType:
+      | "jobseeker"
+      | "recruiter"
+      | "company"
+      | "employer" = "jobseeker",
     roleDetails?: Record<string, unknown>
   ) => {
     const userCredential = await createUserWithEmailAndPassword(

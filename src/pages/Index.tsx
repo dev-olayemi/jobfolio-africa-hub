@@ -331,8 +331,8 @@ const Index = () => {
                   </div>
                   <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                     "I found my current role at a fintech startup within 2 weeks
-                    of joining JobFolio. The platform made it so easy to
-                    connect with the right employers."
+                    of joining JobFolio. The platform made it so easy to connect
+                    with the right employers."
                   </p>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
