@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import {
@@ -23,7 +23,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Loader2, MapPin, Mail, Lock, User, ArrowLeft } from "lucide-react";
+import {
+  Loader2,
+  MapPin,
+  Mail,
+  Lock,
+  User,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 const COUNTRIES = [
   "Nigeria",
@@ -40,6 +49,17 @@ const COUNTRIES = [
 const Auth = () => {
   const location = useLocation();
   const accountTypeFromLocation = (location.state as any)?.accountType;
+  const navigate = useNavigate();
+  const [showSignIn, setShowSignIn] = useState(false);
+
+  // If no account type is selected and not showing sign-in, redirect to account type selection
+  useEffect(() => {
+    if (!accountTypeFromLocation && !showSignIn) {
+      navigate("/select-account-type", { replace: true });
+      return;
+    }
+  }, [accountTypeFromLocation, navigate, showSignIn]);
+
   const [accountType, setAccountType] = useState<
     "jobseeker" | "recruiter" | "company" | "employer" | null
   >(accountTypeFromLocation || null);
@@ -51,6 +71,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [country, setCountry] = useState<string | undefined>(undefined);
@@ -75,7 +96,6 @@ const Auth = () => {
   const [employerYearsInBusiness, setEmployerYearsInBusiness] = useState("");
 
   const { signIn, signUp } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,8 +204,8 @@ const Auth = () => {
 
   return (
     <Layout>
-      <div className="container max-w-2xl mx-auto px-3 md:px-4 py-8 md:py-12">
-        <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+      <div className="container max-w-5xl mx-auto px-3 sm:px-4 py-6 md:py-12">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-8 lg:gap-12">
           {/* Left Side - Info */}
           <div className="hidden md:flex flex-col justify-center">
             <div className="space-y-6">
@@ -265,8 +285,54 @@ const Auth = () => {
           </div>
 
           {/* Right Side - Form */}
-          <Card className="md:shadow-lg">
-            <CardHeader className="space-y-1">
+          <Card className="border md:shadow-lg w-full">
+            <CardHeader className="space-y-2 pb-3">
+              {/* Show tabs for sign-in vs sign-up when on main auth page */}
+              {!accountTypeFromLocation && (
+                <div className="flex gap-1 -mx-6 px-6 mb-4 border-b border-border">
+                  <Button
+                    type="button"
+                    variant={showSignIn ? "default" : "ghost"}
+                    size="sm"
+                    className={`rounded-none border-b-2 transition-colors flex-1 ${
+                      showSignIn
+                        ? "border-primary font-semibold"
+                        : "border-transparent"
+                    }`}
+                    onClick={() => {
+                      setShowSignIn(true);
+                      setIsSignUp(false);
+                      setFirstName("");
+                      setLastName("");
+                      setCountry(undefined);
+                      setShowCountryPicker(false);
+                      setShowPassword(false);
+                    }}
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={!showSignIn ? "default" : "ghost"}
+                    size="sm"
+                    className={`rounded-none border-b-2 transition-colors flex-1 ${
+                      !showSignIn
+                        ? "border-primary font-semibold"
+                        : "border-transparent"
+                    }`}
+                    onClick={() => {
+                      setShowSignIn(false);
+                      setIsSignUp(true);
+                      setEmail("");
+                      setPassword("");
+                      setShowPassword(false);
+                    }}
+                  >
+                    Sign Up
+                  </Button>
+                </div>
+              )}
+
               {accountType && isSignUp ? (
                 <div>
                   <Button
@@ -290,6 +356,13 @@ const Auth = () => {
                       : "Build your hiring team and grow"}
                   </CardDescription>
                 </div>
+              ) : showSignIn ? (
+                <div>
+                  <CardTitle className="text-2xl">Welcome Back</CardTitle>
+                  <CardDescription>
+                    Sign in to continue to your dashboard
+                  </CardDescription>
+                </div>
               ) : (
                 <div>
                   <CardTitle className="text-2xl">
@@ -303,16 +376,114 @@ const Auth = () => {
                 </div>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <form
                 onSubmit={handleSubmit}
-                className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
+                className="space-y-5 max-h-[75vh] overflow-y-auto pr-2"
               >
-                {isSignUp && (
+                {/* Sign-in form - simple email/password only */}
+                {showSignIn ? (
                   <>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="signin-email"
+                        className="text-sm font-medium"
+                      >
+                        Email Address
+                      </Label>
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="focus:ring-2 focus:ring-primary h-10"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="signin-password"
+                        className="text-sm font-medium"
+                      >
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="signin-password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="focus:ring-2 focus:ring-primary h-10 pr-10"
+                          minLength={6}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="text-xs h-auto p-0"
+                        onClick={() => {
+                          toast.info("Contact support for password reset");
+                        }}
+                      >
+                        Forgot password?
+                      </Button>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full h-11 text-base font-semibold mt-2"
+                      disabled={loading}
+                    >
+                      {loading && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Sign In
+                    </Button>
+
+                    <div className="mt-6 pt-4 border-t border-border text-center">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Don't have an account?{" "}
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="p-0 h-auto text-primary font-semibold"
+                          onClick={() => {
+                            setShowSignIn(false);
+                            setIsSignUp(true);
+                            setEmail("");
+                            setPassword("");
+                            setShowPassword(false);
+                          }}
+                        >
+                          Create one here
+                        </Button>
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Sign-up form - full form with role-specific fields */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label htmlFor="firstName" className="text-sm">
+                        <Label
+                          htmlFor="firstName"
+                          className="text-sm font-medium"
+                        >
                           First Name
                         </Label>
                         <Input
@@ -321,12 +492,15 @@ const Auth = () => {
                           placeholder="John"
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          className="focus:ring-2 focus:ring-primary"
+                          className="focus:ring-2 focus:ring-primary h-10"
                           required
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="lastName" className="text-sm">
+                        <Label
+                          htmlFor="lastName"
+                          className="text-sm font-medium"
+                        >
                           Last Name
                         </Label>
                         <Input
@@ -335,7 +509,7 @@ const Auth = () => {
                           placeholder="Doe"
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
-                          className="focus:ring-2 focus:ring-primary"
+                          className="focus:ring-2 focus:ring-primary h-10"
                           required
                         />
                       </div>
@@ -655,62 +829,76 @@ const Auth = () => {
                   </>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm">
-                    Email Address
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 focus:ring-2 focus:ring-primary"
-                      required
-                    />
-                  </div>
-                </div>
+                {/* Email/Password fields - only for signup (sign-in has separate ones above) */}
+                {!showSignIn && (
+                  <>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="signup-email"
+                        className="text-sm font-medium"
+                      >
+                        Email Address
+                      </Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="signup-email"
+                          type="email"
+                          placeholder="you@example.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10 focus:ring-2 focus:ring-primary h-10"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 focus:ring-2 focus:ring-primary"
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  {!isSignUp && (
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="text-xs h-auto p-0 float-right"
-                      onClick={() => {
-                        toast.info("Contact support for password reset");
-                      }}
-                    >
-                      Forgot password?
-                    </Button>
-                  )}
-                </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="signup-password"
+                        className="text-sm font-medium"
+                      >
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="signup-password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 pr-10 focus:ring-2 focus:ring-primary h-10"
+                          required
+                          minLength={6}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <Button
                   type="submit"
-                  className="w-full h-10 text-base font-semibold"
+                  className="w-full h-11 text-base font-semibold mt-4"
                   disabled={loading}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isSignUp ? "Create Account" : "Sign In"}
+                  {showSignIn
+                    ? "Sign In"
+                    : isSignUp
+                    ? "Create Account"
+                    : "Sign In"}
                 </Button>
               </form>
 
