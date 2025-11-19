@@ -73,7 +73,7 @@ const Index = () => {
                   <>
                     <Button
                       size="lg"
-                      onClick={() => navigate("/auth")}
+                      onClick={() => navigate("/select-account-type")}
                       className="text-base px-8 h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-lg"
                     >
                       Get Started Free
@@ -530,7 +530,7 @@ const Index = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"
-                onClick={() => navigate("/auth")}
+                onClick={() => navigate("/select-account-type")}
                 className="text-base px-8 h-12 bg-white text-primary hover:bg-white/90 shadow-xl"
               >
                 Start Your 3-Day Free Trial

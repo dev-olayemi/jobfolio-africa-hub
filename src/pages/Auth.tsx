@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import {
   Card,
@@ -13,9 +13,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Loader2, MapPin, Mail, Lock, User } from "lucide-react";
+import { Loader2, MapPin, Mail, Lock, User, ArrowLeft } from "lucide-react";
 
 const COUNTRIES = [
   "Nigeria",
@@ -30,6 +38,12 @@ const COUNTRIES = [
 ];
 
 const Auth = () => {
+  const location = useLocation();
+  const accountTypeFromLocation = (location.state as any)?.accountType;
+  const [accountType, setAccountType] = useState<
+    "jobseeker" | "recruiter" | "company" | "employer" | null
+  >(accountTypeFromLocation || null);
+
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -38,6 +52,25 @@ const Auth = () => {
   const [lastName, setLastName] = useState("");
   const [country, setCountry] = useState<string | undefined>(undefined);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+
+  // Recruiter fields
+  const [recruiterCompany, setRecruiterCompany] = useState("");
+  const [recruiterExperience, setRecruiterExperience] = useState("");
+  const [recruiterSpecializations, setRecruiterSpecializations] = useState("");
+  const [recruiterLicense, setRecruiterLicense] = useState("");
+
+  // Company fields
+  const [companyName, setCompanyName] = useState("");
+  const [companyWebsite, setCompanyWebsite] = useState("");
+  const [companyIndustry, setCompanyIndustry] = useState("");
+  const [companySize, setCompanySize] = useState("");
+  const [companyRegistration, setCompanyRegistration] = useState("");
+
+  // Employer fields
+  const [employerBusinessName, setEmployerBusinessName] = useState("");
+  const [employerBusinessType, setEmployerBusinessType] = useState("");
+  const [employerYearsInBusiness, setEmployerYearsInBusiness] = useState("");
+
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -52,9 +85,55 @@ const Auth = () => {
           setLoading(false);
           return;
         }
-        await signUp(email, password, firstName, lastName, country);
+
+        // Validate role-specific fields
+        if (accountType === "recruiter") {
+          if (!recruiterCompany || !recruiterExperience || !recruiterLicense) {
+            toast.error("Please fill in all recruiter fields");
+            setLoading(false);
+            return;
+          }
+        } else if (accountType === "company") {
+          if (!companyName || !companyWebsite || !companyIndustry || !companyRegistration) {
+            toast.error("Please fill in all company fields");
+            setLoading(false);
+            return;
+          }
+        } else if (accountType === "employer") {
+          if (!employerBusinessName || !employerBusinessType || !employerYearsInBusiness) {
+            toast.error("Please fill in all employer fields");
+            setLoading(false);
+            return;
+          }
+        }
+
+        const roleDetails =
+          accountType === "recruiter"
+            ? {
+                companyName: recruiterCompany,
+                experience: recruiterExperience,
+                specialization: recruiterSpecializations.split(",").map((s) => s.trim()),
+                licenseNumber: recruiterLicense,
+              }
+            : accountType === "company"
+              ? {
+                  companyName,
+                  website: companyWebsite,
+                  industry: companyIndustry,
+                  companySize,
+                  registrationNumber: companyRegistration,
+                }
+              : accountType === "employer"
+                ? {
+                    businessName: employerBusinessName,
+                    businessType: employerBusinessType,
+                    yearsInBusiness: employerYearsInBusiness,
+                  }
+                : undefined;
+
+        await signUp(email, password, firstName, lastName, country, accountType || "jobseeker", roleDetails);
         toast.success("Account created successfully!");
-        navigate("/build-folio");
+        navigate(accountType === "jobseeker" ? "/build-folio" : "/profile");
       } else {
         await signIn(email, password);
         toast.success("Signed in successfully!");
@@ -96,6 +175,26 @@ const Auth = () => {
                   Your gateway to opportunities across Africa
                 </p>
               </div>
+
+              {accountType && isSignUp && (
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                  <Badge className="mb-2 capitalize">{accountType}</Badge>
+                  <p className="text-sm text-foreground font-semibold">
+                    {accountType === "recruiter"
+                      ? "Recruiter Registration"
+                      : accountType === "company"
+                        ? "Company Registration"
+                        : "Employer Registration"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {accountType === "recruiter"
+                      ? "Help job seekers find their perfect roles"
+                      : accountType === "company"
+                        ? "Post jobs and find top talent"
+                        : "Build your hiring team and grow"}
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div className="flex gap-3">
@@ -146,17 +245,44 @@ const Auth = () => {
           {/* Right Side - Form */}
           <Card className="md:shadow-lg">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl">
-                {isSignUp ? "Create Account" : "Welcome Back"}
-              </CardTitle>
-              <CardDescription>
-                {isSignUp
-                  ? "Join JobFolio to access African job opportunities"
-                  : "Sign in to continue to your dashboard"}
-              </CardDescription>
+              {accountType && isSignUp ? (
+                <div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mb-2 -ml-2"
+                    onClick={() => navigate("/select-account-type")}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Change account type
+                  </Button>
+                  <CardTitle className="text-2xl capitalize">
+                    Register as {accountType}
+                  </CardTitle>
+                  <CardDescription>
+                    {accountType === "recruiter"
+                      ? "Help job seekers connect with opportunities"
+                      : accountType === "company"
+                        ? "Post jobs and find top talent"
+                        : "Build your hiring team and grow"}
+                  </CardDescription>
+                </div>
+              ) : (
+                <div>
+                  <CardTitle className="text-2xl">
+                    {isSignUp ? "Create Account" : "Welcome Back"}
+                  </CardTitle>
+                  <CardDescription>
+                    {isSignUp
+                      ? "Join JobFolio to access African job opportunities"
+                      : "Sign in to continue to your dashboard"}
+                  </CardDescription>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
                 {isSignUp && (
                   <>
                     <div className="grid grid-cols-2 gap-3">
@@ -245,6 +371,225 @@ const Auth = () => {
                         </Badge>
                       )}
                     </div>
+
+                    {/* Recruiter-specific fields */}
+                    {accountType === "recruiter" && (
+                      <div className="space-y-4 pt-4 border-t border-border">
+                        <h3 className="font-semibold text-sm text-foreground">
+                          Recruiter Information
+                        </h3>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="recruiterCompany" className="text-sm">
+                            Company Name *
+                          </Label>
+                          <Input
+                            id="recruiterCompany"
+                            type="text"
+                            placeholder="Your recruitment company"
+                            value={recruiterCompany}
+                            onChange={(e) => setRecruiterCompany(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="recruiterExperience" className="text-sm">
+                            Years of Experience *
+                          </Label>
+                          <Select
+                            value={recruiterExperience}
+                            onValueChange={setRecruiterExperience}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select experience" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0-2">0-2 years</SelectItem>
+                              <SelectItem value="2-5">2-5 years</SelectItem>
+                              <SelectItem value="5-10">5-10 years</SelectItem>
+                              <SelectItem value="10+">10+ years</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="recruiterSpecializations" className="text-sm">
+                            Specializations (comma-separated)
+                          </Label>
+                          <Textarea
+                            id="recruiterSpecializations"
+                            placeholder="e.g., Technology, Finance, Healthcare"
+                            value={recruiterSpecializations}
+                            onChange={(e) =>
+                              setRecruiterSpecializations(e.target.value)
+                            }
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="recruiterLicense" className="text-sm">
+                            License Number *
+                          </Label>
+                          <Input
+                            id="recruiterLicense"
+                            type="text"
+                            placeholder="Your recruiter license"
+                            value={recruiterLicense}
+                            onChange={(e) => setRecruiterLicense(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Company-specific fields */}
+                    {accountType === "company" && (
+                      <div className="space-y-4 pt-4 border-t border-border">
+                        <h3 className="font-semibold text-sm text-foreground">
+                          Company Information
+                        </h3>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="companyName" className="text-sm">
+                            Company Name *
+                          </Label>
+                          <Input
+                            id="companyName"
+                            type="text"
+                            placeholder="Your company name"
+                            value={companyName}
+                            onChange={(e) => setCompanyName(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="companyWebsite" className="text-sm">
+                            Website *
+                          </Label>
+                          <Input
+                            id="companyWebsite"
+                            type="url"
+                            placeholder="https://company.com"
+                            value={companyWebsite}
+                            onChange={(e) => setCompanyWebsite(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="companyIndustry" className="text-sm">
+                            Industry *
+                          </Label>
+                          <Input
+                            id="companyIndustry"
+                            type="text"
+                            placeholder="e.g., Technology, Finance"
+                            value={companyIndustry}
+                            onChange={(e) => setCompanyIndustry(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="companySize" className="text-sm">
+                            Company Size
+                          </Label>
+                          <Select value={companySize} onValueChange={setCompanySize}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select company size" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1-10">1-10 employees</SelectItem>
+                              <SelectItem value="11-50">11-50 employees</SelectItem>
+                              <SelectItem value="51-200">51-200 employees</SelectItem>
+                              <SelectItem value="201-500">201-500 employees</SelectItem>
+                              <SelectItem value="500+">500+ employees</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="companyRegistration" className="text-sm">
+                            Registration Number *
+                          </Label>
+                          <Input
+                            id="companyRegistration"
+                            type="text"
+                            placeholder="Company registration number"
+                            value={companyRegistration}
+                            onChange={(e) =>
+                              setCompanyRegistration(e.target.value)
+                            }
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Employer-specific fields */}
+                    {accountType === "employer" && (
+                      <div className="space-y-4 pt-4 border-t border-border">
+                        <h3 className="font-semibold text-sm text-foreground">
+                          Business Information
+                        </h3>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="employerBusinessName" className="text-sm">
+                            Business Name *
+                          </Label>
+                          <Input
+                            id="employerBusinessName"
+                            type="text"
+                            placeholder="Your business name"
+                            value={employerBusinessName}
+                            onChange={(e) =>
+                              setEmployerBusinessName(e.target.value)
+                            }
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="employerBusinessType" className="text-sm">
+                            Business Type *
+                          </Label>
+                          <Input
+                            id="employerBusinessType"
+                            type="text"
+                            placeholder="e.g., Tech Startup, Manufacturing"
+                            value={employerBusinessType}
+                            onChange={(e) =>
+                              setEmployerBusinessType(e.target.value)
+                            }
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="employerYearsInBusiness" className="text-sm">
+                            Years in Business *
+                          </Label>
+                          <Select
+                            value={employerYearsInBusiness}
+                            onValueChange={setEmployerYearsInBusiness}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select years" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0-1">Less than 1 year</SelectItem>
+                              <SelectItem value="1-3">1-3 years</SelectItem>
+                              <SelectItem value="3-5">3-5 years</SelectItem>
+                              <SelectItem value="5-10">5-10 years</SelectItem>
+                              <SelectItem value="10+">10+ years</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 

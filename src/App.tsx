@@ -10,6 +10,7 @@ import JobDetails from "./pages/JobDetails";
 import Profile from "./pages/Profile";
 import BuildFolio from "./pages/BuildFolio";
 import Auth from "./pages/Auth";
+import AccountTypeSelection from "./pages/AccountTypeSelection";
 import Payment from "./pages/Payment";
 import About from "./pages/About";
 import Terms from "./pages/Terms";
@@ -30,6 +31,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/select-account-type" element={<AccountTypeSelection />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/jobs/:id" element={<JobDetails />} />

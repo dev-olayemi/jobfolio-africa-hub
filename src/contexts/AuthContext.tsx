@@ -43,7 +43,9 @@ interface AuthContextType {
     password: string,
     firstName: string,
     lastName: string,
-    country?: string
+    country?: string,
+    accountType?: "jobseeker" | "recruiter" | "company" | "employer",
+    roleDetails?: Record<string, unknown>
   ) => Promise<void>;
   signIn: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
@@ -230,7 +232,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     password: string,
     firstName: string,
     lastName: string,
-    country?: string
+    country?: string,
+    accountType: "jobseeker" | "recruiter" | "company" | "employer" = "jobseeker",
+    roleDetails?: Record<string, unknown>
   ) => {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -248,11 +252,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       firstName,
       lastName,
       country: country || undefined,
+      accountType,
+      accountStatus: accountType === "jobseeker" ? "active" : "pending",
       badges: [],
       isAdmin: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
+
+    // Add role-specific details
+    if (accountType === "recruiter" && roleDetails) {
+      (profileData as any).recruiterDetails = {
+        companyName: roleDetails.companyName,
+        experience: roleDetails.experience,
+        specialization: roleDetails.specialization || [],
+        licenseNumber: roleDetails.licenseNumber,
+      };
+    } else if (accountType === "company" && roleDetails) {
+      (profileData as any).companyDetails = {
+        companyName: roleDetails.companyName,
+        website: roleDetails.website,
+        industry: roleDetails.industry,
+        companySize: roleDetails.companySize,
+        registrationNumber: roleDetails.registrationNumber,
+        verified: false,
+      };
+    } else if (accountType === "employer" && roleDetails) {
+      (profileData as any).employerDetails = {
+        businessName: roleDetails.businessName,
+        businessType: roleDetails.businessType,
+        yearsInBusiness: roleDetails.yearsInBusiness,
+      };
+    }
 
     await setDoc(doc(db, "profiles", user.uid), profileData);
     // Remember sign-in time for session expiry checks
