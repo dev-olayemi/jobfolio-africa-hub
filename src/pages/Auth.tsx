@@ -377,10 +377,7 @@ const Auth = () => {
               )}
             </CardHeader>
             <CardContent className="pt-0">
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-5 max-h-[75vh] overflow-y-auto pr-2"
-              >
+              <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Sign-in form - simple email/password only */}
                 {showSignIn ? (
                   <>
