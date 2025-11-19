@@ -24,13 +24,20 @@ const EmailSettings = () => {
   const save = async () => {
     if (!user) return;
     try {
-      const profileRef = doc(db, 'profiles', user.uid);
-      await updateDoc(profileRef, { settings: { ...((profile as any)?.settings || {}), emailNewsletter: newsletter, emailApplications: applications, emailOffers: offers } });
-      toast.success('Email settings updated');
-      window.dispatchEvent(new CustomEvent('refreshUserData'));
+      const profileRef = doc(db, "profiles", user.uid);
+      await updateDoc(profileRef, {
+        settings: {
+          ...((profile as any)?.settings || {}),
+          emailNewsletter: newsletter,
+          emailApplications: applications,
+          emailOffers: offers,
+        },
+      });
+      toast.success("Email settings updated");
+      window.dispatchEvent(new CustomEvent("refreshUserData"));
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save settings');
+      toast.error("Failed to save settings");
     }
   };
 
@@ -46,25 +53,41 @@ const EmailSettings = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">Newsletter</div>
-                  <div className="text-sm text-muted-foreground">Receive our monthly newsletter and product updates.</div>
+                  <div className="text-sm text-muted-foreground">
+                    Receive our monthly newsletter and product updates.
+                  </div>
                 </div>
-                <Switch checked={newsletter} onCheckedChange={(v) => setNewsletter(Boolean(v))} />
+                <Switch
+                  checked={newsletter}
+                  onCheckedChange={(v) => setNewsletter(Boolean(v))}
+                />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">Application Updates</div>
-                  <div className="text-sm text-muted-foreground">Get emails when employers view or respond to your application.</div>
+                  <div className="text-sm text-muted-foreground">
+                    Get emails when employers view or respond to your
+                    application.
+                  </div>
                 </div>
-                <Switch checked={applications} onCheckedChange={(v) => setApplications(Boolean(v))} />
+                <Switch
+                  checked={applications}
+                  onCheckedChange={(v) => setApplications(Boolean(v))}
+                />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">Promotional Offers</div>
-                  <div className="text-sm text-muted-foreground">Receive occasional promotional offers and partner content.</div>
+                  <div className="text-sm text-muted-foreground">
+                    Receive occasional promotional offers and partner content.
+                  </div>
                 </div>
-                <Switch checked={offers} onCheckedChange={(v) => setOffers(Boolean(v))} />
+                <Switch
+                  checked={offers}
+                  onCheckedChange={(v) => setOffers(Boolean(v))}
+                />
               </div>
 
               <div className="pt-4">

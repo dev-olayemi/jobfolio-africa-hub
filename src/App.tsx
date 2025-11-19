@@ -52,7 +52,10 @@ const App = () => (
             <Route path="/admin/jobs" element={<AdminJobs />} />
             <Route path="/settings" element={<SettingsIndex />} />
             <Route path="/settings/email" element={<EmailSettings />} />
-            <Route path="/settings/notifications" element={<NotificationSettings />} />
+            <Route
+              path="/settings/notifications"
+              element={<NotificationSettings />}
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

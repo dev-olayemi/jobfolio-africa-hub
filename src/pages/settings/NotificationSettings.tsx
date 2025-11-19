@@ -22,13 +22,19 @@ const NotificationSettings = () => {
   const save = async () => {
     if (!user) return;
     try {
-      const profileRef = doc(db, 'profiles', user.uid);
-      await updateDoc(profileRef, { settings: { ...((profile as any)?.settings || {}), notifyInApp: inApp, notifyPush: push } });
-      toast.success('Notification settings updated');
-      window.dispatchEvent(new CustomEvent('refreshUserData'));
+      const profileRef = doc(db, "profiles", user.uid);
+      await updateDoc(profileRef, {
+        settings: {
+          ...((profile as any)?.settings || {}),
+          notifyInApp: inApp,
+          notifyPush: push,
+        },
+      });
+      toast.success("Notification settings updated");
+      window.dispatchEvent(new CustomEvent("refreshUserData"));
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save settings');
+      toast.error("Failed to save settings");
     }
   };
 
@@ -44,17 +50,27 @@ const NotificationSettings = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">In-app Notifications</div>
-                  <div className="text-sm text-muted-foreground">Show notifications inside the app.</div>
+                  <div className="text-sm text-muted-foreground">
+                    Show notifications inside the app.
+                  </div>
                 </div>
-                <Switch checked={inApp} onCheckedChange={(v) => setInApp(Boolean(v))} />
+                <Switch
+                  checked={inApp}
+                  onCheckedChange={(v) => setInApp(Boolean(v))}
+                />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">Push Notifications</div>
-                  <div className="text-sm text-muted-foreground">Allow push notifications on supported devices.</div>
+                  <div className="text-sm text-muted-foreground">
+                    Allow push notifications on supported devices.
+                  </div>
                 </div>
-                <Switch checked={push} onCheckedChange={(v) => setPush(Boolean(v))} />
+                <Switch
+                  checked={push}
+                  onCheckedChange={(v) => setPush(Boolean(v))}
+                />
               </div>
 
               <div className="pt-4">

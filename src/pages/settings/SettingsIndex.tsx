@@ -11,7 +11,9 @@ const SettingsIndex = () => {
       <div className="container max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-sm text-muted-foreground">Manage account and notification preferences</p>
+          <p className="text-sm text-muted-foreground">
+            Manage account and notification preferences
+          </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
@@ -20,8 +22,12 @@ const SettingsIndex = () => {
               <CardTitle>Email Preferences</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">Control which emails you receive from JobFolio.</p>
-              <Button onClick={() => navigate('/settings/email')}>Manage Email Settings</Button>
+              <p className="text-sm text-muted-foreground mb-4">
+                Control which emails you receive from JobFolio.
+              </p>
+              <Button onClick={() => navigate("/settings/email")}>
+                Manage Email Settings
+              </Button>
             </CardContent>
           </Card>
 
@@ -30,8 +36,12 @@ const SettingsIndex = () => {
               <CardTitle>Notifications</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">In-app and push notification preferences.</p>
-              <Button onClick={() => navigate('/settings/notifications')}>Manage Notifications</Button>
+              <p className="text-sm text-muted-foreground mb-4">
+                In-app and push notification preferences.
+              </p>
+              <Button onClick={() => navigate("/settings/notifications")}>
+                Manage Notifications
+              </Button>
             </CardContent>
           </Card>
         </div>
