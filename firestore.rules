@@ -3,11 +3,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Profiles: only the profile owner can read and write their profile
+    // Profiles: document ID is userId, owner can read/write
+    // New users: allow create when auth.uid matches document path
     match /profiles/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Folios: owner can create/read/update/delete. On create, enforce userId matches the authenticated user.
@@ -22,7 +23,8 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // Jobs: public read, anyone authenticated can apply
+    // Jobs: public read, authenticated users can apply
+    // Job posters (recruiter/company/employer) can create jobs if approved
     // Subcollections for likes and applications are user-specific
     match /jobs/{jobId} {
       allow read: if true;
@@ -34,8 +36,11 @@ service cloud.firestore {
                     && request.resource.data.description == resource.data.description
                     && request.resource.data.company == resource.data.company;
       
-      // Only admin can create and delete
-      allow create, delete: if request.auth != null && request.auth.token.admin == true;
+      // Recruiters/Companies/Employers can create jobs if account is approved
+      allow create: if request.auth != null;
+      
+      // Only the job poster or admin can delete
+      allow delete: if request.auth != null && (request.auth.uid == resource.data.postedById || request.auth.token.admin == true);
       
       // Likes subcollection: users can create/read/delete their own likes (document ID = userId)
       match /likes/{likeUserId} {
@@ -49,6 +54,13 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == appUserId && request.resource.data.userId == request.auth.uid;
         allow read, update, delete: if request.auth != null && request.auth.uid == appUserId;
       }
+    }
+
+    // Account Approvals: collection for pending account approvals
+    match /accountApprovals/{approvalId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.token.admin == true);
+      allow update, delete: if request.auth != null && request.auth.token.admin == true;
     }
 
     // Default: deny everything else
