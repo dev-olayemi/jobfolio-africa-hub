@@ -18,6 +18,9 @@ import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
 import Industries from "./pages/Industries";
 import AdminJobs from "./pages/AdminJobs";
+import SettingsIndex from "./pages/settings/SettingsIndex";
+import EmailSettings from "./pages/settings/EmailSettings";
+import NotificationSettings from "./pages/settings/NotificationSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +50,9 @@ const App = () => (
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/industries" element={<Industries />} />
             <Route path="/admin/jobs" element={<AdminJobs />} />
+            <Route path="/settings" element={<SettingsIndex />} />
+            <Route path="/settings/email" element={<EmailSettings />} />
+            <Route path="/settings/notifications" element={<NotificationSettings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -614,6 +614,20 @@ const Profile = () => {
                 <Briefcase className="h-4 w-4 mr-2" />
                 Browse Jobs
               </Button>
+              <Button
+                variant="ghost"
+                className="w-full h-11 mt-2"
+                onClick={() => navigate("/settings")}
+              >
+                Account Settings
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full h-11 mt-2"
+                onClick={() => navigate("/select-account-type")}
+              >
+                Change Account Type
+              </Button>
             </div>
           </div>
 
