@@ -76,10 +76,11 @@ const AccountTypeSelection = () => {
 
   const handleContinue = () => {
     if (selectedType) {
+      // Always mark as sign-up when coming from the account type selector
       navigate("/auth", {
         state: {
           accountType: selectedType,
-          isSignUp,
+          isSignUp: true,
         },
       });
     }

@@ -44,7 +44,10 @@ const Auth = () => {
     "jobseeker" | "recruiter" | "company" | "employer" | null
   >(accountTypeFromLocation || null);
 
-  const [isSignUp, setIsSignUp] = useState(false);
+  const isSignUpFromLocation = (location.state as any)?.isSignUp;
+  const [isSignUp, setIsSignUp] = useState<boolean>(
+    Boolean(isSignUpFromLocation)
+  );
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
