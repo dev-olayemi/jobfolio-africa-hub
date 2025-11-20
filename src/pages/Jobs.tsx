@@ -13,6 +13,7 @@ import {
   Clock,
   Building2,
   Eye,
+  Share2,
   Heart,
   Users,
   Search,
@@ -44,12 +45,15 @@ const Jobs = () => {
   const { user, subscription, folio } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchedCount, setFetchedCount] = useState<number | null>(null);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [selectedCountry, setSelectedCountry] = useState<string>(
     localStorage.getItem("selectedCountry") || ""
   );
+  const [showActiveOnly, setShowActiveOnly] = useState<boolean>(true);
 
   const hasAccess =
     subscription &&
@@ -67,12 +71,24 @@ const Jobs = () => {
 
     const fetchJobs = async () => {
       try {
-        let jobsQuery = query(
-          collection(db, "jobs"),
-          where("isActive", "==", true),
-          orderBy("postedAt", "desc"),
-          limit(50)
-        );
+        // Query active jobs; don't order server-side to avoid index/field-missing issues.
+        // We'll sort client-side by postedAt/createdAt for robustness.
+        let jobsQuery = collection(db, "jobs");
+
+        const whereClauses: any[] = [];
+        if (showActiveOnly) whereClauses.push(where("isActive", "==", true));
+
+        // Build query with optional country and industries filters
+        if (selectedCountry) {
+          whereClauses.push(where("country", "==", selectedCountry));
+        }
+
+        if (folio && folio.industries.length > 0 && !selectedCountry) {
+          whereClauses.push(where("category", "in", folio.industries));
+        }
+
+        // Compose final query
+        jobsQuery = query(collection(db, "jobs"), ...whereClauses, limit(200));
 
         // Filter by country if selected
         if (selectedCountry) {
@@ -80,8 +96,7 @@ const Jobs = () => {
             collection(db, "jobs"),
             where("isActive", "==", true),
             where("country", "==", selectedCountry),
-            orderBy("postedAt", "desc"),
-            limit(50)
+            limit(200)
           );
         }
 
@@ -94,8 +109,7 @@ const Jobs = () => {
               collection(db, "jobs"),
               where("isActive", "==", true),
               where("category", "in", folio.industries),
-              orderBy("postedAt", "desc"),
-              limit(50)
+              limit(200)
             );
           }
         }
@@ -106,8 +120,11 @@ const Jobs = () => {
           jobsData.push({ id: doc.id, ...doc.data() } as Job);
         });
         setJobs(jobsData);
+        setFetchedCount(querySnapshot.size);
+        setFetchError(null);
       } catch (error) {
         console.error("Error fetching jobs:", error);
+        setFetchError((error as any)?.message || String(error));
       } finally {
         setLoading(false);
       }
@@ -119,7 +136,7 @@ const Jobs = () => {
         "countryChanged",
         onCountryChange as EventListener
       );
-  }, [folio, selectedCountry]);
+  }, [folio, selectedCountry, showActiveOnly]);
 
   const handleJobClick = (jobId: string) => {
     recordJobView(jobId).catch((err) =>
@@ -139,6 +156,26 @@ const Jobs = () => {
       return;
     }
     navigate(`/jobs/${jobId}`);
+  };
+
+  const handleShare = async (job: Job) => {
+    const url = `${window.location.origin}/jobs/${job.id}`;
+    const title = job.title || "Job";
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title, text: job.company || "", url });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        // lightweight feedback for now
+        alert("Job link copied to clipboard");
+      } else {
+        // fallback prompt
+        window.prompt("Copy this link", url);
+      }
+    } catch (err) {
+      console.error("Share failed", err);
+      alert("Unable to share job link");
+    }
   };
 
   const getDaysAgo = (timestamp: any) => {
@@ -219,31 +256,24 @@ const Jobs = () => {
     )
     .slice()
     .sort((a, b) => {
+      const getTs = (job: any) => {
+        // prefer postedAt, then createdAt, then updatedAt
+        const t = job.postedAt || job.createdAt || job.updatedAt;
+        if (!t) return 0;
+        return t?.toMillis
+          ? t.toMillis()
+          : t?.seconds
+          ? t.seconds * 1000
+          : typeof t === "number"
+          ? t
+          : 0;
+      };
+
       if (sortBy === "newest") {
-        const ta = a.postedAt?.toMillis
-          ? a.postedAt.toMillis()
-          : a.postedAt?.seconds
-          ? a.postedAt.seconds * 1000
-          : 0;
-        const tb = b.postedAt?.toMillis
-          ? b.postedAt.toMillis()
-          : b.postedAt?.seconds
-          ? b.postedAt.seconds * 1000
-          : 0;
-        return tb - ta;
+        return getTs(b) - getTs(a);
       }
       if (sortBy === "oldest") {
-        const ta = a.postedAt?.toMillis
-          ? a.postedAt.toMillis()
-          : a.postedAt?.seconds
-          ? a.postedAt.seconds * 1000
-          : 0;
-        const tb = b.postedAt?.toMillis
-          ? b.postedAt.toMillis()
-          : b.postedAt?.seconds
-          ? b.postedAt.seconds * 1000
-          : 0;
-        return ta - tb;
+        return getTs(a) - getTs(b);
       }
       if (sortBy === "salaryHigh") {
         const parseSalary = (s: any) => {
@@ -297,7 +327,6 @@ const Jobs = () => {
                   <option value="oldest">Oldest</option>
                   <option value="salaryHigh">Salary: High to Low</option>
                 </select>
-
                 <Button
                   variant="outline"
                   size="sm"
@@ -307,6 +336,20 @@ const Jobs = () => {
                   <div className="flex items-center justify-center">
                     <Filter className="h-4 w-4" />
                     <span className="hidden sm:inline">Filters</span>
+                  </div>
+                </Button>
+
+                <Button
+                  variant={showActiveOnly ? "outline" : "ghost"}
+                  size="sm"
+                  onClick={() => setShowActiveOnly((s) => !s)}
+                  className="gap-2 shadow-sm sm:px-3 whitespace-nowrap"
+                >
+                  <div className="flex items-center justify-center">
+                    <Eye className="h-4 w-4" />
+                    <span className="hidden sm:inline">
+                      {showActiveOnly ? "Active only" : "Show all"}
+                    </span>
                   </div>
                 </Button>
               </div>
@@ -346,6 +389,16 @@ const Jobs = () => {
           ) : filteredJobs.length === 0 ? (
             <Card className="text-center py-12 sm:py-16 border border-border/50 shadow-md">
               <CardContent>
+                {fetchError && (
+                  <div className="text-sm text-destructive mb-4">
+                    Error loading jobs: {fetchError}
+                  </div>
+                )}
+                {fetchedCount !== null && fetchedCount === 0 && (
+                  <div className="text-sm text-muted-foreground mb-4">
+                    No active jobs found in the database (fetched: 0)
+                  </div>
+                )}
                 <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4 sm:mb-5">
                   <Briefcase className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground" />
                 </div>
@@ -387,6 +440,18 @@ const Jobs = () => {
                           <span className="truncate">{job.company}</span>
                         </p>
                       </div>
+                      <div className="ml-auto flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShare(job);
+                          }}
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
 
@@ -415,15 +480,33 @@ const Jobs = () => {
                         </Badge>
 
                         {/* Age badge: show 'Recently posted' when <= 7 days */}
-                        {getDaysAgo(job.postedAt) <= 7 ? (
-                          <Badge className="text-xs px-2 py-1 rounded-full">
-                            {jobAgeLabel(job.postedAt)}
+                        {getDaysAgo(job.postedAt || job.createdAt) <= 7 ? (
+                          <Badge
+                            className="text-xs px-2 py-1 rounded-full"
+                            title={
+                              (job.postedAt || job.createdAt)?.toDate
+                                ? (job.postedAt || job.createdAt)
+                                    .toDate()
+                                    .toLocaleString()
+                                : ""
+                            }
+                          >
+                            {jobAgeLabel(job.postedAt || job.createdAt)}
                           </Badge>
                         ) : (
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
                             <Clock className="h-3 w-3 flex-shrink-0" />
-                            <span className="whitespace-nowrap">
-                              {jobAgeLabel(job.postedAt)}
+                            <span
+                              className="whitespace-nowrap"
+                              title={
+                                (job.postedAt || job.createdAt)?.toDate
+                                  ? (job.postedAt || job.createdAt)
+                                      .toDate()
+                                      .toLocaleString()
+                                  : ""
+                              }
+                            >
+                              {jobAgeLabel(job.postedAt || job.createdAt)}
                             </span>
                           </div>
                         )}

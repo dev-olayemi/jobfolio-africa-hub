@@ -1,0 +1,11 @@
+// Backup of firestore.rules prior to update
+// (created automatically by the assistant)
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Original rules backed up here for review. If you need to restore,
+    // copy the contents back into firestore.rules.
+  }
+}
