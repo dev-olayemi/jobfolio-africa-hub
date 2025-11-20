@@ -5,11 +5,10 @@ import {
   doc,
   onSnapshot,
   collection,
-  addDoc,
   serverTimestamp,
   query,
   orderBy,
-  onSnapshot as onSub,
+  runTransaction,
   updateDoc,
   increment,
 } from "firebase/firestore";
@@ -17,24 +16,22 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import PostCard from "@/components/PostCard";
-    runTransaction,
-    increment,
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
-const PostDetail = () => {
+const PostDetail: React.FC = () => {
   const { id } = useParams();
   const { user, profile } = useAuth();
-  const [post, setPost] = useState<any>(null);
-  import { Trash2 } from "lucide-react";
+  const [post, setPost] = useState<any | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState("");
+  const [isProcessingComment, setIsProcessingComment] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     const ref = doc(db, "posts", id);
     const unsub = onSnapshot(ref, (snap) => {
-    const [isProcessingComment, setIsProcessingComment] = useState(false);
       if (snap.exists()) setPost({ id: snap.id, ...snap.data() });
       else setPost(null);
     });
@@ -43,7 +40,7 @@ const PostDetail = () => {
       collection(db, "posts", id, "comments"),
       orderBy("createdAt", "asc")
     );
-    const unsubComments = onSub(commentsQuery, (s) => {
+    const unsubComments = onSnapshot(commentsQuery, (s) => {
       const arr: any[] = [];
       s.forEach((d) => arr.push({ id: d.id, ...d.data() }));
       setComments(arr);
@@ -60,73 +57,78 @@ const PostDetail = () => {
       toast.error("Sign in to comment");
       return;
     }
-    const handleAddComment = async () => {
-      if (!user || !id) {
-        toast.error("Sign in to comment");
-        return;
-      }
-      if (!commentText.trim()) return;
+    if (!commentText.trim()) return;
 
-      setIsProcessingComment(true);
-      try {
-        const postRef = doc(db, "posts", id);
-        const commentsCol = collection(db, "posts", id, "comments");
-        const newCommentRef = doc(commentsCol);
+    setIsProcessingComment(true);
+    try {
+      const postRef = doc(db, "posts", id);
+      const commentsCol = collection(db, "posts", id, "comments");
+      const newCommentRef = doc(commentsCol);
 
-        await runTransaction(db, async (tx) => {
-          const postSnap = await tx.get(postRef);
-          if (!postSnap.exists()) throw new Error("Post not found");
+      await runTransaction(db, async (tx) => {
+        const postSnap = await tx.get(postRef);
+        if (!postSnap.exists()) throw new Error("Post not found");
 
-          tx.set(newCommentRef, {
-            authorId: user.uid,
-            authorName: `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || user.email,
-            content: commentText.trim(),
-            createdAt: serverTimestamp(),
-          });
-
-          tx.update(postRef, { commentsCount: increment(1) });
+        tx.set(newCommentRef, {
+          authorId: user.uid,
+          authorName:
+            `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() ||
+            user.email,
+          content: commentText.trim(),
+          createdAt: serverTimestamp(),
         });
 
-        setCommentText("");
-      } catch (err) {
-        console.error("Failed to add comment (transaction)", err);
-        toast.error("Failed to add comment");
-      } finally {
-        setIsProcessingComment(false);
-      }
-    };
+        tx.update(postRef, { commentsCount: increment(1) });
+      });
 
-    const handleDeleteComment = async (commentId: string, commentAuthorId?: string) => {
-      if (!user || !id) {
-        toast.error("Sign in to delete comments");
-        return;
-      }
+      setCommentText("");
+    } catch (err) {
+      console.error("Failed to add comment (transaction)", err);
+      toast.error("Failed to add comment");
+    } finally {
+      setIsProcessingComment(false);
+    }
+  };
 
-      const isAdmin = profile?.isAdmin || profile?.email === "alice@example.com";
-      if (commentAuthorId !== user.uid && !isAdmin) {
-        toast.error("You can only delete your own comments");
-        return;
-      }
+  const handleDeleteComment = async (
+    commentId: string,
+    commentAuthorId?: string
+  ) => {
+    if (!user || !id) {
+      toast.error("Sign in to delete comments");
+      return;
+    }
 
-      setIsProcessingComment(true);
-      try {
-        const postRef = doc(db, "posts", id);
-        const commentRef = doc(db, "posts", id, "comments", commentId);
+    const isAdmin = profile?.isAdmin || profile?.email === "alice@example.com";
+    if (commentAuthorId !== user.uid && !isAdmin) {
+      toast.error("You can only delete your own comments");
+      return;
+    }
 
-        await runTransaction(db, async (tx) => {
-          const commentSnap = await tx.get(commentRef);
-          if (!commentSnap.exists()) throw new Error("Comment not found");
+    setIsProcessingComment(true);
+    try {
+      const postRef = doc(db, "posts", id);
+      const commentRef = doc(db, "posts", id, "comments", commentId);
 
-          tx.delete(commentRef);
-          tx.update(postRef, { commentsCount: increment(-1) });
-        });
-      } catch (err) {
-        console.error("Failed to delete comment (transaction)", err);
-        toast.error("Failed to delete comment");
-      } finally {
-        setIsProcessingComment(false);
-      }
-    };
+      await runTransaction(db, async (tx) => {
+        const commentSnap = await tx.get(commentRef);
+        if (!commentSnap.exists()) throw new Error("Comment not found");
+
+        tx.delete(commentRef);
+        tx.update(postRef, { commentsCount: increment(-1) });
+      });
+    } catch (err) {
+      console.error("Failed to delete comment (transaction)", err);
+      toast.error("Failed to delete comment");
+    } finally {
+      setIsProcessingComment(false);
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="max-w-3xl mx-auto p-4">
+        {post ? (
           <>
             <PostCard post={post} />
 
@@ -140,25 +142,36 @@ const PostDetail = () => {
                     key={c.id}
                     className="border border-border rounded-md p-3"
                   >
-                    <div className="text-sm font-semibold">{c.authorName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {c.createdAt?.toDate
-                        ? c.createdAt.toDate().toLocaleString()
-                        : ""}
-                    </div>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="text-sm font-semibold">{c.authorName}</div>
-                          <div className="text-xs text-muted-foreground">{c.createdAt?.toDate ? c.createdAt.toDate().toLocaleString() : ''}</div>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-sm font-semibold">
+                          {c.authorName}
                         </div>
-                        <div>
-                          {(user && (c.authorId === user.uid || profile?.isAdmin || profile?.email === 'alice@example.com')) && (
-                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteComment(c.id, c.authorId)} disabled={isProcessingComment}>
+                        <div className="text-xs text-muted-foreground">
+                          {c.createdAt?.toDate
+                            ? c.createdAt.toDate().toLocaleString()
+                            : ""}
+                        </div>
+                      </div>
+                      <div>
+                        {user &&
+                          (c.authorId === user.uid ||
+                            profile?.isAdmin ||
+                            profile?.email === "alice@example.com") && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive"
+                              onClick={() =>
+                                handleDeleteComment(c.id, c.authorId)
+                              }
+                              disabled={isProcessingComment}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
-                        </div>
                       </div>
+                    </div>
                     <div className="mt-2 text-sm whitespace-pre-wrap">
                       {c.content}
                     </div>
@@ -174,7 +187,12 @@ const PostDetail = () => {
                   placeholder="Write a comment..."
                 />
                 <div className="flex justify-end mt-2">
-                  <Button onClick={handleAddComment}>Comment</Button>
+                  <Button
+                    onClick={handleAddComment}
+                    disabled={isProcessingComment}
+                  >
+                    Comment
+                  </Button>
                 </div>
               </div>
             </div>

@@ -82,6 +82,24 @@ const JobDetails = () => {
             const applied = await hasUserApplied(id, user.uid);
             setHasApplied(applied);
           }
+          // store recently viewed jobs in localStorage for quick interactions list
+          try {
+            const key = "recentlyViewedJobs";
+            const raw = localStorage.getItem(key);
+            const arr = raw ? JSON.parse(raw) : [];
+            // remove any existing entry for this job
+            const filtered = arr.filter((x: any) => x.id !== jobDoc.id);
+            filtered.unshift({
+              id: jobDoc.id,
+              title: jobData.title || "",
+              company: jobData.company || "",
+              viewedAt: new Date().toISOString(),
+            });
+            // keep only latest 20
+            localStorage.setItem(key, JSON.stringify(filtered.slice(0, 20)));
+          } catch (e) {
+            // ignore storage errors
+          }
         } else {
           toast.error("Job not found");
           navigate("/jobs");

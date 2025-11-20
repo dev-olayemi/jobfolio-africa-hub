@@ -86,11 +86,24 @@ service cloud.firestore {
         && (request.resource.data.media == null || (request.resource.data.media is list && request.resource.data.media.size() <= 5));
 
       // Update: owner or admin OR lightweight counter updates
-      allow update: if isSignedIn() && (
-        resource.data.postedById == request.auth.uid ||
-        isAdmin() ||
-        (request.resource.data.keys().hasOnly(['views']) && request.resource.data.views is int && request.resource.data.views >= 0 && (resource.data.views is int ? request.resource.data.views <= resource.data.views + 100000 : request.resource.data.views <= 100000)) ||
-        (request.resource.data.keys().hasOnly(['likes']) && request.resource.data.likes is int && request.resource.data.likes >= 0)
+      allow update: if (
+        // owner or admin (must be signed-in)
+        (isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin()))
+        // allow incrementing views by anyone (views are public metric)
+        || (request.resource.data.keys().hasOnly(['views'])
+            && request.resource.data.views is int
+            && request.resource.data.views >= 0
+            && (
+              resource.data.views is int ? request.resource.data.views <= resource.data.views + 100000 : request.resource.data.views <= 100000
+            )
+        )
+        // allow updating likes (either numeric count or lightweight list) only by signed-in users
+        || (isSignedIn() && request.resource.data.keys().hasOnly(['likes']) && (
+             (request.resource.data.likes is int && request.resource.data.likes >= 0)
+             || (request.resource.data.likes is list && request.resource.data.likes.size() <= 10000)
+           ))
+        // allow updating applies count only by signed-in users (increment when application created)
+        || (isSignedIn() && request.resource.data.keys().hasOnly(['applies']) && request.resource.data.applies is int && request.resource.data.applies >= 0)
       );
 
       allow delete: if isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin());
@@ -102,10 +115,62 @@ service cloud.firestore {
       }
 
       // Applications subcollection
-      match /applications/{appUserId} {
-        allow create: if isSignedIn() && request.auth.uid == appUserId && request.resource.data.userId == request.auth.uid;
-        allow read, update, delete: if isSignedIn() && request.auth.uid == appUserId;
+      // Documents may use generated IDs; allow reads for the applicant (applicantId field)
+      // and for the job owner (the parent job's postedById) or admins.
+      match /applications/{applicationId} {
+        allow create: if isSignedIn() && request.resource.data.applicantId == request.auth.uid;
+        allow read: if isSignedIn() && (
+          // applicant can read their own application
+          resource.data.applicantId == request.auth.uid
+          // job owner (parent job) can read applications for their job
+          || get(/databases/$(database)/documents/jobs/$(jobId)).data.postedById == request.auth.uid
+          // admins can read
+          || isAdmin()
+        );
+        allow update, delete: if isSignedIn() && (
+          // applicant can update/delete their own application
+          resource.data.applicantId == request.auth.uid
+          // job owner or admin can update application status
+          || get(/databases/$(database)/documents/jobs/$(jobId)).data.postedById == request.auth.uid
+          || isAdmin()
+        );
       }
+    }
+
+    // Generic likes collectionGroup: supports documents like jobs/{id}/likes/{userId}
+    // or posts/{id}/likes/{userId}. Allows a user to create/delete their own like
+    // and to read their own likes (enables collectionGroup queries filtered by user).
+    match /{parent=**}/likes/{likeId} {
+      allow create: if isSignedIn() && (
+        // doc id equals caller OR the document explicitly records the user
+        request.auth.uid == likeId || (request.resource.data.userId == request.auth.uid)
+      );
+      allow read: if isSignedIn() && (
+        // allow reading your own like documents
+        resource.data.userId == request.auth.uid || likeId == request.auth.uid
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || likeId == request.auth.uid
+      );
+    }
+
+    // Generic applications collectionGroup: allows applicants to create/read their
+    // own applications and allows the parent resource owner (e.g. job owner) or admins
+    // to read/update/delete applications. This supports collectionGroup queries that
+    // filter by `applicantId`.
+    match /{parent=**}/applications/{applicationId} {
+      allow create: if isSignedIn() && request.resource.data.applicantId == request.auth.uid;
+      allow read: if isSignedIn() && (
+        resource.data.applicantId == request.auth.uid
+        // allow parent owner (if the parent document has `postedById`)
+        || (exists(/databases/$(database)/documents/$(parent)) && get(/databases/$(database)/documents/$(parent)).data.postedById == request.auth.uid)
+        || isAdmin()
+      );
+      allow update, delete: if isSignedIn() && (
+        resource.data.applicantId == request.auth.uid
+        || (exists(/databases/$(database)/documents/$(parent)) && get(/databases/$(database)/documents/$(parent)).data.postedById == request.auth.uid)
+        || isAdmin()
+      );
     }
 
     // Account approvals (admin-controlled)
@@ -113,6 +178,19 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow read: if isSignedIn() && (request.auth.uid == resource.data.userId || isAdmin());
       allow update, delete: if isSignedIn() && isAdmin();
+    }
+
+    // Default deny
+    // Notifications: created by trusted server functions (admin SDK). Clients may only read their own
+    // notifications and mark them as read.
+    match /notifications/{notificationId} {
+      // disallow client-side creation; functions (admin SDK) should create notifications
+      allow create: if false;
+      // allow the recipient to read their notifications
+      allow read: if isSignedIn() && request.auth.uid == resource.data.to;
+      // allow the recipient to mark a notification as read
+      allow update: if isSignedIn() && request.auth.uid == resource.data.to;
+      allow delete: if false;
     }
 
     // Default deny

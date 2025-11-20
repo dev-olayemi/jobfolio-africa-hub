@@ -111,35 +111,88 @@ const Feed = () => {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Share an update, article, or thought..."
-            className="w-full min-h-[80px] p-3 rounded-md border border-input resize-none"
+            className="w-full min-h-[100px] p-3 rounded-md border border-input resize-none bg-transparent"
           />
 
-          <div className="flex flex-col gap-3 mt-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileChange}
-              />
-              <span className="text-sm text-muted-foreground">
-                (up to 5 images)
-              </span>
+          <div className="mt-3">
+            <input
+              id="feed-files"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            <div
+              onClick={() => document.getElementById("feed-files")?.click()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const fList = Array.from(
+                  e.dataTransfer?.files || ([] as File[])
+                );
+                if (fList.length) {
+                  setFiles((prev) => [...prev, ...fList].slice(0, 5));
+                }
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              className="flex items-center justify-between gap-3 p-3 rounded-md border border-border/40 bg-transparent cursor-pointer hover:bg-muted/5"
+            >
+              <div className="flex items-center gap-3">
+                <svg
+                  className="h-5 w-5 text-muted-foreground"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M16 3v4"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8 3v4"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <div className="text-sm">
+                  <div className="font-medium">Add images</div>
+                  <div className="text-xs text-muted-foreground">
+                    Click or drop images here (up to 5)
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {files.length}/5 selected
+              </div>
             </div>
 
             {files.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap mt-3">
                 {files.map((f, i) => (
-                  <div key={i} className="relative">
+                  <div
+                    key={i}
+                    className="relative w-24 h-24 rounded-md overflow-hidden border border-border/30"
+                  >
                     <img
                       src={URL.createObjectURL(f)}
                       alt={f.name}
-                      className="h-24 w-24 object-cover rounded-md"
+                      className="w-full h-full object-cover"
                     />
                     <button
                       type="button"
                       onClick={() => removeFile(i)}
                       className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1"
+                      aria-label="Remove image"
                     >
                       &times;
                     </button>
@@ -148,7 +201,7 @@ const Feed = () => {
               </div>
             )}
 
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end mt-3">
               <Button onClick={handlePost} disabled={isPosting}>
                 {isPosting ? "Posting..." : "Post"}
               </Button>

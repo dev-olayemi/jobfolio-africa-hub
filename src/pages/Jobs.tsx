@@ -46,6 +46,7 @@ const Jobs = () => {
   const [loading, setLoading] = useState(true);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<string>("newest");
   const [selectedCountry, setSelectedCountry] = useState<string>(
     localStorage.getItem("selectedCountry") || ""
   );
@@ -157,12 +158,51 @@ const Jobs = () => {
       .slice(0, 2);
   };
 
-  const filteredJobs = jobs.filter(
-    (job) =>
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredJobs = jobs
+    .filter(
+      (job) =>
+        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.category.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .slice()
+    .sort((a, b) => {
+      if (sortBy === "newest") {
+        const ta = a.postedAt?.toMillis
+          ? a.postedAt.toMillis()
+          : a.postedAt?.seconds
+          ? a.postedAt.seconds * 1000
+          : 0;
+        const tb = b.postedAt?.toMillis
+          ? b.postedAt.toMillis()
+          : b.postedAt?.seconds
+          ? b.postedAt.seconds * 1000
+          : 0;
+        return tb - ta;
+      }
+      if (sortBy === "oldest") {
+        const ta = a.postedAt?.toMillis
+          ? a.postedAt.toMillis()
+          : a.postedAt?.seconds
+          ? a.postedAt.seconds * 1000
+          : 0;
+        const tb = b.postedAt?.toMillis
+          ? b.postedAt.toMillis()
+          : b.postedAt?.seconds
+          ? b.postedAt.seconds * 1000
+          : 0;
+        return ta - tb;
+      }
+      if (sortBy === "salaryHigh") {
+        const parseSalary = (s: any) => {
+          if (!s) return 0;
+          const m = String(s).replace(/[,\s]/g, "").match(/(\d+)/);
+          return m ? parseInt(m[1], 10) : 0;
+        };
+        return parseSalary(b.salary) - parseSalary(a.salary);
+      }
+      return 0;
+    });
 
   return (
     <Layout>
@@ -195,17 +235,29 @@ const Jobs = () => {
                   className="pl-10 h-10 sm:h-12 bg-card border-border/50 shadow-sm text-xs sm:text-sm"
                 />
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 shadow-sm sm:px-4 whitespace-nowrap"
-                asChild
-              >
-                <div className="flex items-center justify-center">
-                  <Filter className="h-4 w-4" />
-                  <span className="hidden sm:inline">Filters</span>
-                </div>
-              </Button>
+              <div className="flex items-center gap-2">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="h-10 sm:h-12 bg-card border border-border/50 px-3 text-sm rounded-md"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="salaryHigh">Salary: High to Low</option>
+                </select>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 shadow-sm sm:px-4 whitespace-nowrap"
+                  asChild
+                >
+                  <div className="flex items-center justify-center">
+                    <Filter className="h-4 w-4" />
+                    <span className="hidden sm:inline">Filters</span>
+                  </div>
+                </Button>
+              </div>
             </div>
           </div>
 
