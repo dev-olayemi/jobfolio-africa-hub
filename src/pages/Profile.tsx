@@ -31,6 +31,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { downloadCVPDF } from "@/lib/cvGenerator";
 import { uploadProfileImage } from "@/lib/imageUpload";
+import { uploadToDrive } from "@/lib/driveUpload";
 import { toast } from "sonner";
 
 const BADGE_DEFINITIONS = [
@@ -158,6 +159,39 @@ const Profile = () => {
         }
 
         try {
+          // Prefer server-side Drive upload if available
+          if (user) {
+            try {
+              const res = await uploadToDrive(file, user.uid);
+              const link =
+                res?.link || res?.url || res?.fileId
+                  ? res.link ||
+                    (res.fileId
+                      ? `https://drive.google.com/uc?export=view&id=${res.fileId}`
+                      : undefined)
+                  : undefined;
+
+              if (link) {
+                const profileRef = doc(db, "profiles", user.uid);
+                await updateDoc(profileRef, {
+                  profilePictureUrl: link,
+                });
+
+                setProfilePictureUrl(link);
+                toast.success("Profile picture updated successfully!");
+                window.dispatchEvent(new CustomEvent("refreshUserData"));
+                setIsUploadingPicture(false);
+                return;
+              }
+            } catch (driveErr) {
+              console.warn(
+                "Drive upload failed, falling back to client upload:",
+                driveErr
+              );
+            }
+          }
+
+          // Fallback: client-side base64 upload
           const result = await uploadProfileImage(file);
 
           if (result.success && result.data && user) {

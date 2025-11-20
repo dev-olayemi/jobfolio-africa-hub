@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { uploadToDrive } from "@/lib/driveUpload";
 import { db } from "@/lib/firebase";
 import { Loader2, Plus, X, ArrowLeft } from "lucide-react";
 
@@ -111,6 +112,8 @@ const PostJob = () => {
   const [industry, setIndustry] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   const handleAddKeyword = () => {
     if (keywordInput.trim() && !keywords.includes(keywordInput.trim())) {
@@ -139,6 +142,34 @@ const PostJob = () => {
     setLoading(true);
 
     try {
+      const media: string[] = [];
+      if (mediaFiles.length > 0 && user) {
+        setIsUploadingMedia(true);
+        try {
+          const uploadPromises = mediaFiles.map((f) =>
+            uploadToDrive(f, user.uid)
+              .then(
+                (res) =>
+                  res?.link ||
+                  (res?.fileId
+                    ? `https://drive.google.com/uc?export=view&id=${res.fileId}`
+                    : undefined)
+              )
+              .catch((err) => {
+                console.warn("Drive upload failed for a file:", err);
+                return null;
+              })
+          );
+
+          const results = await Promise.all(uploadPromises);
+          media.push(...(results.filter(Boolean) as string[]));
+        } catch (err) {
+          console.warn("Drive upload failed:", err);
+          toast.error("Image upload failed. You can post without images.");
+        } finally {
+          setIsUploadingMedia(false);
+        }
+      }
       const jobData = {
         title: jobTitle,
         company,
@@ -155,6 +186,7 @@ const PostJob = () => {
         benefits,
         industry: industry || null,
         keywords,
+        media,
         postedById: user.uid,
         posterName: (profile as any)?.firstName || "Unknown",
         posterType: accountType,
@@ -399,6 +431,51 @@ const PostJob = () => {
               </div>
 
               {/* Keywords */}
+              <div className="space-y-4 border-b pb-6">
+                <h3 className="font-semibold text-lg">Media (optional)</h3>
+                <div className="space-y-2">
+                  <Label className="font-medium">
+                    Attach images (optional)
+                  </Label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      const list = e.target.files
+                        ? Array.from(e.target.files)
+                        : [];
+                      if (list.length === 0) return;
+                      setMediaFiles((prev) => [...prev, ...list].slice(0, 5));
+                    }}
+                  />
+
+                  {mediaFiles.length > 0 && (
+                    <div className="mt-2 flex gap-2 flex-wrap">
+                      {mediaFiles.map((f, i) => (
+                        <div key={i} className="relative">
+                          <img
+                            src={URL.createObjectURL(f)}
+                            alt={f.name}
+                            className="h-24 w-24 object-cover rounded-md"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMediaFiles((prev) =>
+                                prev.filter((_, idx) => idx !== i)
+                              )
+                            }
+                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="space-y-4 border-b pb-6">
                 <h3 className="font-semibold text-lg">Keywords</h3>
                 <div className="space-y-2">

@@ -1,7 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Home,
   Briefcase,
   User,
   Menu,
@@ -15,6 +14,8 @@ import {
   Lock,
   Grid3x3,
   Globe,
+  Plus,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -25,6 +26,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import logoImage from "@/assets/jobfolio-logo.jpg";
 
@@ -79,6 +82,23 @@ export const Layout = ({ children }: LayoutProps) => {
   };
 
   const isActive = (path: string) => location.pathname === path;
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // subscribe to unread notifications count for the signed-in user
+  useEffect(() => {
+    if (!user) {
+      setUnreadNotifications(0);
+      return;
+    }
+    const q = query(collection(db, "notifications"), where("to", "==", user.uid), where("read", "==", false));
+    const unsub = onSnapshot(q, (snap) => {
+      setUnreadNotifications(snap.size);
+    });
+    return () => unsub();
+  }, [user]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -196,79 +216,90 @@ export const Layout = ({ children }: LayoutProps) => {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate("/auth")}
-                className="font-semibold"
-              >
-                Sign In
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => navigate("/auth")}
-                className="font-semibold bg-gradient-to-r from-primary to-accent hover:opacity-90"
-              >
-                Sign Up
-              </Button>
-            </div>
-          )}
-
-          {/* Menu Trigger */}
-          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-10 w-10">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="right"
-              className="w-72 bg-gradient-to-b from-card via-card to-card/50 p-0 border-l border-border"
-            >
-              {/* Sidebar Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-primary/10 to-accent/10 border-b border-border px-4 py-4 backdrop-blur-sm">
-                <h2 className="font-bold text-lg text-foreground">Menu</h2>
-                <p className="text-xs text-muted-foreground">
-                  Navigation & Settings
-                </p>
-              </div>
-
-              {/* Sidebar Content */}
-              <div className="flex flex-col gap-1 mt-4 px-2">
-                {menuItems.map((item) => {
-                  const IconComponent = item.icon;
-                  return (
-                    <Button
-                      key={item.path}
-                      variant={isActive(item.path) ? "default" : "ghost"}
-                      className="justify-start gap-3 h-auto py-2.5 px-3 text-sm group"
-                      onClick={() => {
-                        navigate(item.path);
-                        setSheetOpen(false);
-                      }}
+                {/* Bottom Toolbar - 5 tabs */}
+                <nav className="fixed bottom-0 left-0 right-0 h-18 bg-card border-t border-border z-50">
+                  <div className="h-full max-w-md mx-auto grid grid-cols-5 items-center px-2">
+                    {/* Jobs */}
+                    <button
+                      onClick={() => navigate("/jobs")}
+                      className={`flex flex-col items-center justify-center py-2 ${isActive("/jobs") ? "text-primary" : "text-muted-foreground"}`}
                     >
-                      <IconComponent className="h-5 w-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                      <span>{item.label}</span>
-                    </Button>
-                  );
-                })}
+                      <Briefcase className="h-5 w-5" />
+                      <span className="text-xs">Jobs</span>
+                    </button>
 
-                {/* Divider */}
-                <div className="my-3 border-t border-border" />
-
-                {/* User Section */}
-                {user ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      className="justify-start gap-3 h-auto py-2.5 px-3 text-sm"
-                      onClick={() => {
-                        navigate("/profile");
-                        setSheetOpen(false);
-                      }}
+                    {/* Updates (feed) */}
+                    <button
+                      onClick={() => navigate("/feed")}
+                      className={`flex flex-col items-center justify-center py-2 ${isActive("/feed") ? "text-primary" : "text-muted-foreground"}`}
                     >
-                      <img
-                        src={profile?.profilePictureUrl}
-                        alt="avatar"
-                        className="h-5 w-5 rounded-full object-cover flex-shrink-0"
-                      />
-                      <span>Profile</span>
+                      <div className="h-6 w-6 rounded-md flex items-center justify-center">
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h18M3 6h18M3 18h18" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                      <span className="text-xs">Updates</span>
+                    </button>
+
+                    {/* Center Create + */}
+                    <div className="flex items-center justify-center -mt-6">
+                      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+                        <SheetTrigger asChild>
+                          <Button size="icon" className="h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl">
+                            <Plus className="h-6 w-6" />
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent side="bottom" className="p-4 max-w-md mx-auto rounded-t-lg">
+                          <div className="space-y-3">
+                            <h3 className="text-lg font-semibold">Create</h3>
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                onClick={() => {
+                                  setCreateOpen(false);
+                                  navigate("/feed");
+                                }}
+                                className="justify-start"
+                              >
+                                Post Update
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setCreateOpen(false);
+                                  navigate("/post-job");
+                                }}
+                                variant="outline"
+                                className="justify-start"
+                              >
+                                Post Job
+                              </Button>
+                            </div>
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                    </div>
+
+                    {/* Notifications */}
+                    <button
+                      onClick={() => navigate("/notifications")}
+                      className={`flex flex-col items-center justify-center py-2 ${isActive("/notifications") ? "text-primary" : "text-muted-foreground"}`}
+                    >
+                      <div className="relative">
+                        <Bell className="h-5 w-5" />
+                        {unreadNotifications > 0 && (
+                          <Badge className="absolute -top-2 -right-3">{unreadNotifications > 99 ? '99+' : unreadNotifications}</Badge>
+                        )}
+                      </div>
+                      <span className="text-xs">Alerts</span>
+                    </button>
+
+                    {/* Profile */}
+                    <button
+                      onClick={() => navigate("/profile")}
+                      className={`flex flex-col items-center justify-center py-2 ${isActive("/profile") ? "text-primary" : "text-muted-foreground"}`}
+                    >
+                      <User className="h-5 w-5" />
+                      <span className="text-xs">Profile</span>
+                    </button>
+                  </div>
+                </nav>
                     </Button>
                     {profile?.isAdmin ||
                     profile?.email === "alice@example.com" ? (
@@ -328,15 +359,67 @@ export const Layout = ({ children }: LayoutProps) => {
             <span className="text-xs">Jobs</span>
           </Button>
 
-          <Button
-            variant={isActive("/") ? "default" : "ghost"}
-            size="lg"
-            onClick={() => navigate("/")}
-            className="flex flex-col gap-1 h-auto py-2"
-          >
-            <Home className="h-5 w-5" />
-            <span className="text-xs">Home</span>
-          </Button>
+          {/* Center: Updates + Create */}
+          <div className="flex flex-col items-center">
+            <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  size="icon"
+                  onClick={() => {
+                    /* opens sheet via trigger */
+                  }}
+                  className={`h-12 w-12 rounded-full shadow-md ${
+                    isActive("/feed")
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-white text-foreground"
+                  }`}
+                >
+                  <Plus className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+
+              <SheetContent
+                side="bottom"
+                className="p-4 max-w-md mx-auto rounded-t-lg"
+              >
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold">Create</h3>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      onClick={() => {
+                        setCreateOpen(false);
+                        navigate("/feed");
+                      }}
+                      className="justify-start"
+                    >
+                      Post Update
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setCreateOpen(false);
+                        navigate("/post-job");
+                      }}
+                      variant="outline"
+                      className="justify-start"
+                    >
+                      Post Job
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <button
+              onClick={() => navigate("/feed")}
+              className={`text-xs mt-1 ${
+                isActive("/feed")
+                  ? "text-primary font-semibold"
+                  : "text-xs text-muted-foreground"
+              }`}
+            >
+              Updates
+            </button>
+          </div>
 
           <Button
             variant={isActive("/profile") ? "default" : "ghost"}

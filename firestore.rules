@@ -3,67 +3,119 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Profiles: document ID is userId, owner can read/write
-    // New users: allow create when auth.uid matches document path
-    match /profiles/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Folios: owner can create/read/update/delete. On create, enforce userId matches the authenticated user.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Profiles: allow public read, but restrict writes to profile owner
+    match /profiles/{userId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update, delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Folios: owner-only access
     match /folios/{folioId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Subscriptions: owner-only access
     match /subscriptions/{subId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // Jobs: public read, authenticated users can apply
-    // Job posters (recruiter/company/employer) can create jobs if approved
-    // Subcollections for likes and applications are user-specific
+    // Posts (social feed)
+    match /posts/{postId} {
+      // Public read access for feed
+      allow read: if true;
+
+      // Create: only authenticated users, authorId must match caller, content validated, media limited
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.content is string
+        && request.resource.data.content.size() <= 2000
+        && (request.resource.data.media == null || (request.resource.data.media is list && request.resource.data.media.size() <= 5));
+
+      // Update: owner or admin OR allow lightweight updates for likes/comments counters
+      allow update: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid ||
+        isAdmin() ||
+        // allow updating only the likes array by any signed in user
+        (request.resource.data.keys().hasOnly(['likes']) && request.resource.data.likes is list && request.resource.data.likes.size() <= 10000) ||
+        // allow updating only commentsCount (used by transactional increments)
+        (request.resource.data.keys().hasOnly(['commentsCount'])
+          && request.resource.data.commentsCount is int
+          && request.resource.data.commentsCount >= 0
+          && (
+            // if previous commentsCount exists, the new value must not jump unreasonably
+            (resource.data.commentsCount is int ? request.resource.data.commentsCount <= resource.data.commentsCount + 1000 : request.resource.data.commentsCount <= 1000)
+          )
+        )
+      );
+
+      // Delete: only owner or admin
+      allow delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.content is string
+          && request.resource.data.content.size() <= 1000;
+        allow update, delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+      }
+    }
+
+    // Jobs collection
     match /jobs/{jobId} {
       allow read: if true;
-      
-      // Allow authenticated users to update only specific fields (views, likes, applies counters)
-      // This prevents unauthorized updates to job content
-      allow update: if request.auth != null 
-                    && request.resource.data.title == resource.data.title
-                    && request.resource.data.description == resource.data.description
-                    && request.resource.data.company == resource.data.company;
-      
-      // Recruiters/Companies/Employers can create jobs if account is approved
-      allow create: if request.auth != null;
-      
-      // Only the job poster or admin can delete
-      allow delete: if request.auth != null && (request.auth.uid == resource.data.postedById || request.auth.token.admin == true);
-      
-      // Likes subcollection: users can create/read/delete their own likes (document ID = userId)
+
+      // Create: authenticated users may create jobs; postedById must match
+      allow create: if isSignedIn()
+        && request.resource.data.postedById == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 200
+        && (request.resource.data.media == null || (request.resource.data.media is list && request.resource.data.media.size() <= 5));
+
+      // Update: owner or admin OR lightweight counter updates
+      allow update: if isSignedIn() && (
+        resource.data.postedById == request.auth.uid ||
+        isAdmin() ||
+        (request.resource.data.keys().hasOnly(['views']) && request.resource.data.views is int && request.resource.data.views >= 0 && (resource.data.views is int ? request.resource.data.views <= resource.data.views + 100000 : request.resource.data.views <= 100000)) ||
+        (request.resource.data.keys().hasOnly(['likes']) && request.resource.data.likes is int && request.resource.data.likes >= 0)
+      );
+
+      allow delete: if isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin());
+
+      // Likes subcollection (optional pattern used elsewhere)
       match /likes/{likeUserId} {
-        allow create: if request.auth != null && request.auth.uid == likeUserId;
-        allow read, delete: if request.auth != null && request.auth.uid == likeUserId;
+        allow create: if isSignedIn() && request.auth.uid == likeUserId;
+        allow read, delete: if isSignedIn() && request.auth.uid == likeUserId;
       }
-      
-      // Applications subcollection: users can create/read their own applications (document ID = userId)
-      // Key: document ID must match the userId in the request
+
+      // Applications subcollection
       match /applications/{appUserId} {
-        allow create: if request.auth != null && request.auth.uid == appUserId && request.resource.data.userId == request.auth.uid;
-        allow read, update, delete: if request.auth != null && request.auth.uid == appUserId;
+        allow create: if isSignedIn() && request.auth.uid == appUserId && request.resource.data.userId == request.auth.uid;
+        allow read, update, delete: if isSignedIn() && request.auth.uid == appUserId;
       }
     }
 
-    // Account Approvals: collection for pending account approvals
+    // Account approvals (admin-controlled)
     match /accountApprovals/{approvalId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.token.admin == true);
-      allow update, delete: if request.auth != null && request.auth.token.admin == true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow update, delete: if isSignedIn() && isAdmin();
     }
 
-    // Default: deny everything else
+    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }

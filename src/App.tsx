@@ -20,6 +20,8 @@ import Privacy from "./pages/Privacy";
 import Industries from "./pages/Industries";
 import AdminJobs from "./pages/AdminJobs";
 import PostJob from "./pages/PostJob";
+import Feed from "./pages/Feed";
+import PostDetail from "./pages/PostDetail";
 import ManageJobs from "./pages/ManageJobs";
 import JobApplications from "./pages/JobApplications";
 import MyApplications from "./pages/MyApplications";
@@ -47,6 +49,8 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Login />} />
             <Route path="/jobs" element={<Jobs />} />
+            <Route path="/feed" element={<Feed />} />
+            <Route path="/post/:id" element={<PostDetail />} />
             <Route path="/jobs/:id" element={<JobDetails />} />
             <Route path="/post-job" element={<PostJob />} />
             <Route path="/manage-jobs" element={<ManageJobs />} />
