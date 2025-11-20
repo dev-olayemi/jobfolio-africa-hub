@@ -6,7 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
+jobfolio-f5b8c-0db989e3ecb1.json
 node_modules
 dist
 dist-ssr
