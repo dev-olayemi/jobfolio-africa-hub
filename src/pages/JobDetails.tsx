@@ -178,6 +178,7 @@ const JobDetails = () => {
       }
     } catch (error) {
       console.error("Error toggling like:", error);
+      toast.error("Failed to toggle like");
     } finally {
       setIsLiking(false);
     }
@@ -290,12 +291,15 @@ const JobDetails = () => {
 
           <Card className="mb-6 overflow-hidden border-0 shadow-lg">
             {/* Banner: prefer a job banner if available, otherwise fall back to gradient */}
+            {/* Prefer explicit bannerUrl, then media[0], then coverImage/logoUrl */}
             {(job as any).bannerUrl ||
+            (job as any).media?.[0] ||
             (job as any).coverImage ||
             job.logoUrl ? (
               <img
                 src={
                   (job as any).bannerUrl ||
+                  (job as any).media?.[0] ||
                   (job as any).coverImage ||
                   job.logoUrl
                 }

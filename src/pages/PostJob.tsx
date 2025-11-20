@@ -198,6 +198,11 @@ const PostJob = () => {
         status: "active",
         views: 0,
         likes: 0,
+        // set banner/logo from first uploaded media for nicer job card/banner display
+        bannerUrl: media && media.length > 0 ? media[0] : null,
+        logoUrl: media && media.length > 0 ? media[0] : null,
+        applies: 0,
+        // legacy compatibility: some UI expects `applications` field
         applications: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

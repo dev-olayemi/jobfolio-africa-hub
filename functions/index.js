@@ -232,3 +232,127 @@ exports.onApplicationCreate = functions.firestore
       return null;
     }
   });
+
+// Firestore trigger: when a like is created under jobs/{jobId}/likes/{likeId}
+// notify the job owner (server-side write)
+exports.onLikeCreate = functions.firestore
+  .document("jobs/{jobId}/likes/{likeId}")
+  .onCreate(async (snap, context) => {
+    try {
+      const like = snap.data();
+      const jobId = context.params.jobId;
+
+      const jobRef = db.doc(`jobs/${jobId}`);
+      const jobSnap = await jobRef.get();
+      if (!jobSnap.exists) return null;
+      const job = jobSnap.data();
+
+      const to = job?.postedById || job?.authorId || null;
+      if (!to) return null;
+
+      // don't notify if liker is the owner
+      if (to === like?.userId) return null;
+
+      await db.collection("notifications").add({
+        to,
+        from: like?.userId || null,
+        type: "like",
+        jobId,
+        likeId: context.params.likeId,
+        read: false,
+        message: (like?.userName || "Someone") + " liked your job",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return null;
+    } catch (err) {
+      console.error("onLikeCreate error", err);
+      return null;
+    }
+  });
+
+// Firestore trigger: when a like is removed under jobs/{jobId}/likes/{likeId}
+// decrement job likes and remove the notification created for the like
+exports.onLikeDelete = functions.firestore
+  .document("jobs/{jobId}/likes/{likeId}")
+  .onDelete(async (snap, context) => {
+    try {
+      const like = snap.data();
+      const jobId = context.params.jobId;
+
+      // decrement likes counter on job (safely)
+      try {
+        await db
+          .doc(`jobs/${jobId}`)
+          .update({ likes: admin.firestore.FieldValue.increment(-1) });
+      } catch (e) {
+        // if field doesn't exist, ignore
+      }
+
+      // remove any notification tied to this like
+      const likeId = context.params.likeId;
+      const notifSnap = await db
+        .collection("notifications")
+        .where("likeId", "==", likeId)
+        .get();
+      const batch = db.batch();
+      notifSnap.forEach((d) => batch.delete(d.ref));
+      if (!notifSnap.empty) await batch.commit();
+
+      return null;
+    } catch (err) {
+      console.error("onLikeDelete error", err);
+      return null;
+    }
+  });
+
+// Firestore trigger: when an application is removed, decrement applies count and remove notifications
+exports.onApplicationDelete = functions.firestore
+  .document("jobs/{jobId}/applications/{applicationId}")
+  .onDelete(async (snap, context) => {
+    try {
+      const applicationId = context.params.applicationId;
+      const jobId = context.params.jobId;
+
+      try {
+        await db
+          .doc(`jobs/${jobId}`)
+          .update({ applies: admin.firestore.FieldValue.increment(-1) });
+      } catch (e) {
+        // ignore
+      }
+
+      const notifSnap = await db
+        .collection("notifications")
+        .where("applicationId", "==", applicationId)
+        .get();
+      const batch = db.batch();
+      notifSnap.forEach((d) => batch.delete(d.ref));
+      if (!notifSnap.empty) await batch.commit();
+
+      return null;
+    } catch (err) {
+      console.error("onApplicationDelete error", err);
+      return null;
+    }
+  });
+
+// Firestore trigger: when a post comment is deleted, remove the notification for that comment
+exports.onPostCommentDelete = functions.firestore
+  .document("posts/{postId}/comments/{commentId}")
+  .onDelete(async (snap, context) => {
+    try {
+      const commentId = context.params.commentId;
+      const notifSnap = await db
+        .collection("notifications")
+        .where("commentId", "==", commentId)
+        .get();
+      const batch = db.batch();
+      notifSnap.forEach((d) => batch.delete(d.ref));
+      if (!notifSnap.empty) await batch.commit();
+      return null;
+    } catch (err) {
+      console.error("onPostCommentDelete error", err);
+      return null;
+    }
+  });

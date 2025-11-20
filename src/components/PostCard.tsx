@@ -3,6 +3,7 @@ import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Heart, MessageCircle, Clock } from "lucide-react";
+import { toast } from "sonner";
 
 const PostCard = ({ post }: { post: any }) => {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ const PostCard = ({ post }: { post: any }) => {
       }
     } catch (err) {
       console.error("Failed to toggle like", err);
+      toast.error("Failed to toggle like");
     } finally {
       setIsLiking(false);
     }
