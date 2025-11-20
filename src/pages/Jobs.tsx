@@ -168,6 +168,15 @@ const Jobs = () => {
     return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
   };
 
+  const jobAgeLabel = (timestamp: any) => {
+    const days = getDaysAgo(timestamp);
+    if (days === 0) return "Today";
+    if (days <= 7) return "Recently posted";
+    if (days < 30) return `${days}d ago`;
+    const weeks = Math.ceil(days / 7);
+    return `${weeks}w ago`;
+  };
+
   const formatSalary = (salary: any) => {
     if (!salary) return "";
     if (typeof salary === "string") return salary;
@@ -397,17 +406,27 @@ const Jobs = () => {
 
                     {/* Category Badge and Posted Date */}
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-2 sm:pt-3 border-t border-border/30">
-                      <Badge
-                        variant="secondary"
-                        className="rounded-full px-2 sm:px-3 py-1 text-xs sm:text-sm"
-                      >
-                        {job.category}
-                      </Badge>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                        <Clock className="h-3 w-3 flex-shrink-0" />
-                        <span className="whitespace-nowrap">
-                          {getDaysAgo(job.postedAt)}d ago
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className="rounded-full px-2 sm:px-3 py-1 text-xs sm:text-sm"
+                        >
+                          {job.category}
+                        </Badge>
+
+                        {/* Age badge: show 'Recently posted' when <= 7 days */}
+                        {getDaysAgo(job.postedAt) <= 7 ? (
+                          <Badge className="text-xs px-2 py-1 rounded-full">
+                            {jobAgeLabel(job.postedAt)}
+                          </Badge>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                            <Clock className="h-3 w-3 flex-shrink-0" />
+                            <span className="whitespace-nowrap">
+                              {jobAgeLabel(job.postedAt)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
