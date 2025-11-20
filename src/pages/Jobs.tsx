@@ -142,11 +142,54 @@ const Jobs = () => {
   };
 
   const getDaysAgo = (timestamp: any) => {
-    const postedDate = timestamp.toDate();
+    // Support Firestore Timestamp, JS Date, numeric epoch, or ISO string.
+    if (!timestamp) return 0;
+    let postedDate: Date | null = null;
+    try {
+      if (
+        typeof timestamp === "object" &&
+        typeof timestamp.toDate === "function"
+      ) {
+        postedDate = timestamp.toDate();
+      } else if (timestamp instanceof Date) {
+        postedDate = timestamp;
+      } else if (typeof timestamp === "number") {
+        postedDate = new Date(timestamp);
+      } else if (typeof timestamp === "string") {
+        const d = new Date(timestamp);
+        if (!isNaN(d.getTime())) postedDate = d;
+      }
+    } catch (err) {
+      postedDate = null;
+    }
+    if (!postedDate) return 0;
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - postedDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  };
+
+  const formatSalary = (salary: any) => {
+    if (!salary) return "";
+    if (typeof salary === "string") return salary;
+    if (typeof salary === "object") {
+      const { min, max, currency } = salary as any;
+      const c = currency ? `${currency} ` : "";
+      if (min != null && max != null) {
+        try {
+          const minNum = typeof min === "number" ? min : parseInt(min as any);
+          const maxNum = typeof max === "number" ? max : parseInt(max as any);
+          if (!isNaN(minNum) && !isNaN(maxNum)) {
+            return `${c}${minNum.toLocaleString()} - ${maxNum.toLocaleString()}`;
+          }
+        } catch (e) {
+          // fallback
+        }
+      }
+      if (min != null) return `${c}${min}`;
+      if (max != null) return `${c}${max}`;
+      return "";
+    }
+    return String(salary);
   };
 
   const getInitials = (company: string) => {
@@ -348,7 +391,7 @@ const Jobs = () => {
                       </div>
                       <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-green-600 dark:text-green-400">
                         <DollarSign className="h-4 w-4 flex-shrink-0" />
-                        <span>{job.salary}</span>
+                        <span>{formatSalary(job.salary)}</span>
                       </div>
                     </div>
 

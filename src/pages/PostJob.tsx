@@ -182,8 +182,12 @@ const PostJob = () => {
           currency: currency || "USD",
         },
         description,
-        requirements,
-        benefits,
+        // store requirements as an array (one per line) to match AdminJobs format
+        requirements: (requirements || "")
+          .split("\n")
+          .map((r) => r.trim())
+          .filter(Boolean),
+        benefits: benefits,
         industry: industry || null,
         keywords,
         media,
@@ -197,9 +201,29 @@ const PostJob = () => {
         applications: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        postedAt: serverTimestamp(),
       };
 
-      const docRef = await addDoc(collection(db, "jobs"), jobData);
+      // Sanitize jobData: Firestore rejects `undefined` values anywhere in the object.
+      // Convert undefined -> null (or remove keys) so addDoc never fails with unsupported value.
+      const sanitizeForFirestore = (obj: any) => {
+        if (obj === undefined) return null;
+        if (obj === null) return null;
+        if (Array.isArray(obj)) return obj.map((v) => sanitizeForFirestore(v));
+        if (typeof obj === "object") {
+          const out: any = {};
+          for (const [k, v] of Object.entries(obj)) {
+            const sanitized = sanitizeForFirestore(v);
+            if (sanitized !== undefined) out[k] = sanitized;
+          }
+          return out;
+        }
+        return obj;
+      };
+
+      const safeJobData = sanitizeForFirestore(jobData);
+
+      const docRef = await addDoc(collection(db, "jobs"), safeJobData);
       toast.success("Job posted successfully!");
       navigate(`/jobs/${docRef.id}`);
     } catch (error: any) {

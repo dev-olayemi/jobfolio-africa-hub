@@ -184,10 +184,30 @@ const JobDetails = () => {
   };
 
   const getDaysAgo = (timestamp: any) => {
-    const postedDate = timestamp.toDate();
+    // Support Firestore Timestamp, JS Date, numeric epoch, or ISO string.
+    if (!timestamp) return 0;
+    let postedDate: Date | null = null;
+    try {
+      if (
+        typeof timestamp === "object" &&
+        typeof timestamp.toDate === "function"
+      ) {
+        postedDate = timestamp.toDate();
+      } else if (timestamp instanceof Date) {
+        postedDate = timestamp;
+      } else if (typeof timestamp === "number") {
+        postedDate = new Date(timestamp);
+      } else if (typeof timestamp === "string") {
+        const d = new Date(timestamp);
+        if (!isNaN(d.getTime())) postedDate = d;
+      }
+    } catch (err) {
+      postedDate = null;
+    }
+    if (!postedDate) return 0;
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - postedDate.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
   };
 
   const getInitials = (company: string) => {
@@ -197,6 +217,42 @@ const JobDetails = () => {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const formatSalary = (salary: any) => {
+    // salary may be a string (legacy) or an object { min, max, currency }
+    if (!salary) return "";
+    if (typeof salary === "string") return salary;
+    if (typeof salary === "object") {
+      const { min, max, currency } = salary;
+      const c = currency ? `${currency} ` : "";
+      if (min != null && max != null) {
+        try {
+          const minNum = typeof min === "number" ? min : parseInt(min as any);
+          const maxNum = typeof max === "number" ? max : parseInt(max as any);
+          if (!isNaN(minNum) && !isNaN(maxNum)) {
+            return `${c}${minNum.toLocaleString()} - ${maxNum.toLocaleString()}`;
+          }
+        } catch (e) {
+          // fallback
+        }
+      }
+      if (min != null) return `${c}${min}`;
+      if (max != null) return `${c}${max}`;
+      return "";
+    }
+    return String(salary);
+  };
+
+  const coerceToStringArray = (val: any): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.filter(Boolean).map((v) => String(v));
+    if (typeof val === "string")
+      return val
+        .split("\n")
+        .map((r) => (typeof r === "string" ? r.trim() : String(r)))
+        .filter(Boolean);
+    return [];
   };
 
   if (loading || !job) {
@@ -233,7 +289,22 @@ const JobDetails = () => {
           </Button>
 
           <Card className="mb-6 overflow-hidden border-0 shadow-lg">
-            <div className="h-24 sm:h-32 bg-gradient-to-r from-primary via-accent to-primary" />
+            {/* Banner: prefer a job banner if available, otherwise fall back to gradient */}
+            {(job as any).bannerUrl ||
+            (job as any).coverImage ||
+            job.logoUrl ? (
+              <img
+                src={
+                  (job as any).bannerUrl ||
+                  (job as any).coverImage ||
+                  job.logoUrl
+                }
+                alt={`${job.company} banner`}
+                className="w-full h-24 sm:h-32 object-cover"
+              />
+            ) : (
+              <div className="h-24 sm:h-32 bg-gradient-to-r from-primary via-accent to-primary" />
+            )}
             <CardHeader className="-mt-12 sm:-mt-12 relative z-10">
               <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
                 <Avatar className="h-28 w-28 sm:h-24 sm:w-24 md:h-32 md:w-32 rounded-2xl border-4 border-card shadow-xl bg-card flex-shrink-0">
@@ -280,7 +351,9 @@ const JobDetails = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-success font-semibold">
                       <DollarSign className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{job.salary}</span>
+                      <span className="truncate">
+                        {formatSalary(job.salary)}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-4 w-4 flex-shrink-0" />
@@ -356,7 +429,7 @@ const JobDetails = () => {
                 </CardContent>
               </Card>
 
-              {job.responsibilities && job.responsibilities.length > 0 && (
+              {coerceToStringArray(job.responsibilities).length > 0 && (
                 <Card className="border-0 shadow-md">
                   <CardHeader>
                     <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
@@ -366,21 +439,25 @@ const JobDetails = () => {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-3">
-                      {job.responsibilities.map((item, index) => (
-                        <li
-                          key={index}
-                          className="flex items-start gap-3 text-sm sm:text-base"
-                        >
-                          <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                          <span className="text-muted-foreground">{item}</span>
-                        </li>
-                      ))}
+                      {coerceToStringArray(job.responsibilities).map(
+                        (item, index) => (
+                          <li
+                            key={index}
+                            className="flex items-start gap-3 text-sm sm:text-base"
+                          >
+                            <div className="h-2 w-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                            <span className="text-muted-foreground">
+                              {item}
+                            </span>
+                          </li>
+                        )
+                      )}
                     </ul>
                   </CardContent>
                 </Card>
               )}
 
-              {job.requirements && job.requirements.length > 0 && (
+              {coerceToStringArray(job.requirements).length > 0 && (
                 <Card className="border-0 shadow-md">
                   <CardHeader>
                     <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
@@ -390,15 +467,19 @@ const JobDetails = () => {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-3">
-                      {job.requirements.map((item, index) => (
-                        <li
-                          key={index}
-                          className="flex items-start gap-3 text-sm sm:text-base"
-                        >
-                          <div className="h-2 w-2 rounded-full bg-accent mt-2 flex-shrink-0" />
-                          <span className="text-muted-foreground">{item}</span>
-                        </li>
-                      ))}
+                      {coerceToStringArray(job.requirements).map(
+                        (item, index) => (
+                          <li
+                            key={index}
+                            className="flex items-start gap-3 text-sm sm:text-base"
+                          >
+                            <div className="h-2 w-2 rounded-full bg-accent mt-2 flex-shrink-0" />
+                            <span className="text-muted-foreground">
+                              {item}
+                            </span>
+                          </li>
+                        )
+                      )}
                     </ul>
                   </CardContent>
                 </Card>
@@ -554,7 +635,7 @@ const JobDetails = () => {
                         className="text-xs flex items-center gap-1"
                       >
                         <DollarSign className="h-3 w-3" />
-                        {job.salary}
+                        {formatSalary(job.salary)}
                       </Badge>
                     </div>
                   </div>

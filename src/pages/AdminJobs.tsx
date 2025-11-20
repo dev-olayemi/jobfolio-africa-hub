@@ -37,7 +37,7 @@ const AdminJobs = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "jobs"), {
+      const jobObj: any = {
         title,
         company,
         location,
@@ -60,7 +60,25 @@ const AdminJobs = () => {
         views: 0,
         likes: 0,
         applies: 0,
-      });
+      };
+
+      const sanitizeForFirestore = (obj: any) => {
+        if (obj === undefined) return null;
+        if (obj === null) return null;
+        if (Array.isArray(obj)) return obj.map((v) => sanitizeForFirestore(v));
+        if (typeof obj === "object") {
+          const out: any = {};
+          for (const [k, v] of Object.entries(obj)) {
+            const sanitized = sanitizeForFirestore(v);
+            if (sanitized !== undefined) out[k] = sanitized;
+          }
+          return out;
+        }
+        return obj;
+      };
+
+      const safeJob = sanitizeForFirestore(jobObj);
+      await addDoc(collection(db, "jobs"), safeJob);
       toast.success("Job added");
       // clear
       setTitle("");
