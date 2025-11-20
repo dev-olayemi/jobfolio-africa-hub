@@ -189,7 +189,8 @@ const PostJob = () => {
         media,
         postedById: user.uid,
         posterName: (profile as any)?.firstName || "Unknown",
-        posterType: accountType,
+        // Ensure posterType is never undefined (Firestore rejects undefined values)
+        posterType: accountType || "unknown",
         status: "active",
         views: 0,
         likes: 0,
