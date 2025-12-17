@@ -181,3 +181,20 @@ export interface Advertisement {
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+export interface VerificationRequest {
+  id: string;
+  userId: string;
+  accountType: "recruiter" | "company" | "employer";
+  status: "pending" | "approved" | "rejected";
+  documentType: "id_card" | "business_license" | "cac_certificate" | "passport" | "other";
+  documentUrl: string;
+  documentName: string;
+  additionalInfo?: string;
+  reviewedBy?: string;
+  reviewedAt?: Timestamp;
+  rejectionReason?: string;
+  submittedAt: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
