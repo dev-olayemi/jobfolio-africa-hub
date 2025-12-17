@@ -54,8 +54,11 @@ const Interactions = () => {
           collection(db, "posts"),
           where("likes", "array-contains", user.uid)
         );
-        const postsSnap = await getDocs(postsQ as any);
-        setLikedPosts(postsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const postsSnap = await getDocs(postsQ);
+        setLikedPosts(postsSnap.docs.map((d) => {
+          const data = d.data() as Record<string, unknown>;
+          return { id: d.id, ...data };
+        }));
 
         // applications submitted by user (collectionGroup)
         const appsQ = query(

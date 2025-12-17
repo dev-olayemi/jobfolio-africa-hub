@@ -93,6 +93,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             email: current?.email || "",
             firstName: firstName || "",
             lastName: lastName || "",
+            accountType: "jobseeker",
+            accountStatus: "active",
+            badges: [],
+            isAdmin: false,
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now(),
           };
