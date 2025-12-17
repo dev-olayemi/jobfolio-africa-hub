@@ -26,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { setDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Education, Experience } from "@/lib/firebase-types";
+import CVUploader from "@/components/CVUploader";
 
 const industries = [
   "Technology",
@@ -391,12 +392,64 @@ const BuildFolio = () => {
 
           {/* Step 2: Personal Information */}
           {currentStep === 2 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-                <CardDescription>Tell us about yourself</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <div className="space-y-6">
+              {/* CV Uploader */}
+              <CVUploader
+                onDataExtracted={(data) => {
+                  // Populate personal info
+                  setPersonalInfo({
+                    fullName: data.fullName || personalInfo.fullName,
+                    email: data.email || personalInfo.email,
+                    phone: data.phone || personalInfo.phone,
+                    location: data.location || personalInfo.location,
+                    summary: data.summary || personalInfo.summary,
+                  });
+                  
+                  // Populate skills
+                  if (data.skills.length > 0) {
+                    setSkills((prev) => [...new Set([...prev, ...data.skills])].slice(0, 20));
+                  }
+                  
+                  // Populate education
+                  if (data.education.length > 0) {
+                    const newEducation = data.education.map((edu, idx) => ({
+                      id: `parsed-edu-${idx}-${Date.now()}`,
+                      school: edu.school,
+                      degree: edu.degree,
+                      field: edu.field,
+                      startDate: "",
+                      endDate: "",
+                      current: false,
+                      description: "",
+                    }));
+                    setEducation((prev) => [...prev, ...newEducation]);
+                  }
+                  
+                  // Populate experience
+                  if (data.experience.length > 0) {
+                    const newExperience = data.experience.map((exp, idx) => ({
+                      id: `parsed-exp-${idx}-${Date.now()}`,
+                      company: exp.company,
+                      position: exp.position,
+                      location: exp.location || "",
+                      startDate: "",
+                      endDate: "",
+                      current: false,
+                      description: exp.description || "",
+                    }));
+                    setExperience((prev) => [...prev, ...newExperience]);
+                  }
+                  
+                  toast.success("Data extracted! Review and complete the details below.");
+                }}
+              />
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Personal Information</CardTitle>
+                  <CardDescription>Tell us about yourself</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Full Name *</Label>
@@ -468,6 +521,7 @@ const BuildFolio = () => {
                 </div>
               </CardContent>
             </Card>
+            </div>
           )}
 
           {/* Step 3: Skills */}

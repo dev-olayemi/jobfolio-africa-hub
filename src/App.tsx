@@ -21,6 +21,7 @@ import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
 import Industries from "./pages/Industries";
 import AdminJobs from "./pages/AdminJobs";
+import AdminVerifications from "./pages/AdminVerifications";
 import PostJob from "./pages/PostJob";
 import Feed from "./pages/Feed";
 import PostDetail from "./pages/PostDetail";
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/industries" element={<Industries />} />
               <Route path="/admin/jobs" element={<AdminJobs />} />
+              <Route path="/admin/verifications" element={<AdminVerifications />} />
               <Route path="/settings" element={<SettingsIndex />} />
               <Route path="/settings/email" element={<EmailSettings />} />
               <Route
