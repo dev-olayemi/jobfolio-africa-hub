@@ -73,7 +73,8 @@ const Jobs = () => {
       try {
         // Query active jobs; don't order server-side to avoid index/field-missing issues.
         // We'll sort client-side by postedAt/createdAt for robustness.
-        let jobsQuery = collection(db, "jobs");
+        // Use a permissive type so we can reassign to a Query result below.
+        let jobsQuery: any = collection(db, "jobs");
 
         const whereClauses: any[] = [];
         if (showActiveOnly) whereClauses.push(where("isActive", "==", true));
@@ -117,7 +118,8 @@ const Jobs = () => {
         const querySnapshot = await getDocs(jobsQuery);
         const jobsData: Job[] = [];
         querySnapshot.forEach((doc) => {
-          jobsData.push({ id: doc.id, ...doc.data() } as Job);
+          const data = doc.data() as Record<string, any>;
+          jobsData.push({ id: doc.id, ...data } as Job);
         });
         setJobs(jobsData);
         setFetchedCount(querySnapshot.size);

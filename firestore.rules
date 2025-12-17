@@ -41,26 +41,21 @@ service cloud.firestore {
     // - comments: public read, create by signed-in users
     // -----------------------------
     match /posts/{postId} {
+      // Posts are publicly readable
       allow read: if true;
 
-      allow create: if isSignedIn()
-        && request.resource.data.authorId == request.auth.uid
-        && request.resource.data.content is string
-        && request.resource.data.content.size() <= 4000
-        && (request.resource.data.media == null || (request.resource.data.media is list && request.resource.data.media.size() <= 10));
+      // Only authenticated users can create posts
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
 
-      // disallow clients from directly manipulating counters (likesCount/commentsCount)
-      // only post owner or admin may update the post document itself
-      allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
-
-      allow delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+      // Only owner or admin can update/delete posts
+      allow update, delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
 
       match /comments/{commentId} {
+        // Comments are publicly readable
         allow read: if true;
-        allow create: if isSignedIn()
-          && request.resource.data.authorId == request.auth.uid
-          && request.resource.data.content is string
-          && request.resource.data.content.size() <= 2000;
+        // Only authenticated users can comment
+        allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+        // Only owner or admin can update/delete comments
         allow update, delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
       }
     }
@@ -79,39 +74,60 @@ service cloud.firestore {
         && request.resource.data.postedById == request.auth.uid
         && request.resource.data.title is string
         && request.resource.data.title.size() <= 300
-        && (request.resource.data.media == null || (request.resource.data.media is list && request.resource.data.media.size() <= 10));
+        && (request.resource.data.media == null || (request.resource.data.media is list && request.resource.data.media.size() <= 10))
+        && (
+          // Company jobs must have all required fields
+          (request.resource.data.type == "company"
+            && request.resource.data.companyName is string
+            && request.resource.data.cacNumber is string // or certificateUpload
+            && (request.resource.data.certificateUpload is string || request.resource.data.cacNumber is string)
+            && request.resource.data.companyEmail is string
+            && request.resource.data.officeAddress is string
+            && request.resource.data.hrManagerName is string
+            && request.resource.data.hrManagerPhone is string
+            // websiteOrSocialLink is optional
+            && request.resource.data.isActive == true
+          )
+          // Business jobs must have all required fields
+          || (request.resource.data.type == "business"
+            && request.resource.data.businessName is string
+            && request.resource.data.businessType is string
+            && request.resource.data.businessAddress is string
+            && request.resource.data.ownerName is string
+            && request.resource.data.ownerId is string // NIN/ID/Voter's Card
+            && request.resource.data.ownerPhone is string
+            // businessLogoOrPhoto is optional
+            && request.resource.data.isActive == true
+          )
+        );
 
       // Owner or admin may update job fields. Prevent clients from arbitrarily changing counters.
-      allow update: if isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin())
-        // OR allow a safe single increment to views by anyone (views must equal previous + 1)
-        || (request.resource.data.keys().hasOnly(['views'])
-            && request.resource.data.views is int
-            && resource.data.views is int
-            && request.resource.data.views == resource.data.views + 1
-        );
+      // Only owner or admin can update/delete jobs
+      allow update, delete: if isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin());
+
+      // Anyone can increment views (public metric)
+      allow update: if request.resource.data.keys().hasOnly(['views'])
+        && request.resource.data.views is int
+        && resource.data.views is int
+        && request.resource.data.views == resource.data.views + 1;
 
       allow delete: if isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin());
 
       // likes as a subcollection: user may create/delete their own like doc.
       match /likes/{likeUserId} {
-        allow create: if isSignedIn() && request.auth.uid == likeUserId && request.resource.data.userId == request.auth.uid;
-        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || likeUserId == request.auth.uid);
-        allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || likeUserId == request.auth.uid);
+        // Any authenticated user can like/unlike any post/job
+        allow create: if isSignedIn();
+        allow read: if true;
+        allow delete: if isSignedIn() && request.auth.uid == likeUserId;
       }
 
       // applications subcollection. Applicant may create and read their application.
       // Job owner may read/update application status. Admins may manage.
       match /applications/{applicationId} {
-        allow create: if isSignedIn() && request.resource.data.applicantId == request.auth.uid
-          && request.resource.data.jobId == jobId;
-
-        allow read: if isSignedIn() && (
-          resource.data.applicantId == request.auth.uid
-          || get(/databases/$(database)/documents/jobs/$(jobId)).data.postedById == request.auth.uid
-          || isAdmin()
-        );
-
-        allow update, delete: if isSignedIn() && (
+        // Only authenticated users can apply
+        allow create: if isSignedIn() && request.resource.data.applicantId == request.auth.uid;
+        // Only owner, applicant, or admin can read/update/delete
+        allow read, update, delete: if isSignedIn() && (
           resource.data.applicantId == request.auth.uid
           || get(/databases/$(database)/documents/jobs/$(jobId)).data.postedById == request.auth.uid
           || isAdmin()
@@ -126,19 +142,17 @@ service cloud.firestore {
     // applications for their resources via parent checks.
     // -----------------------------
     match /{parent=**}/likes/{likeId} {
-      allow create: if isSignedIn() && (request.auth.uid == likeId || request.resource.data.userId == request.auth.uid);
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || likeId == request.auth.uid);
-      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || likeId == request.auth.uid);
+      // Any authenticated user can like/unlike any post/job
+      allow create: if isSignedIn();
+      allow read: if true;
+      allow delete: if isSignedIn() && request.auth.uid == likeId;
     }
 
     match /{parent=**}/applications/{applicationId} {
+      // Only authenticated users can apply
       allow create: if isSignedIn() && request.resource.data.applicantId == request.auth.uid;
-      allow read: if isSignedIn() && (
-        resource.data.applicantId == request.auth.uid
-        || (exists(/databases/$(database)/documents/$(parent)) && get(/databases/$(database)/documents/$(parent)).data.postedById == request.auth.uid)
-        || isAdmin()
-      );
-      allow update, delete: if isSignedIn() && (
+      // Only owner, applicant, or admin can read/update/delete
+      allow read, update, delete: if isSignedIn() && (
         resource.data.applicantId == request.auth.uid
         || (exists(/databases/$(database)/documents/$(parent)) && get(/databases/$(database)/documents/$(parent)).data.postedById == request.auth.uid)
         || isAdmin()
@@ -175,3 +189,4 @@ service cloud.firestore {
     }
   }
 }
+  

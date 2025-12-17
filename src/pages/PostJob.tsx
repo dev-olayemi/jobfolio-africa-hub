@@ -98,6 +98,7 @@ const PostJob = () => {
   }
 
   const [loading, setLoading] = useState(false);
+  // Common fields
   const [jobTitle, setJobTitle] = useState("");
   const [company, setCompany] = useState((profile as any)?.companyName || "");
   const [location, setLocation] = useState((profile as any)?.country || "");
@@ -114,6 +115,26 @@ const PostJob = () => {
   const [keywordInput, setKeywordInput] = useState("");
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  // Company-specific fields
+  const [cacNumber, setCacNumber] = useState("");
+  const [certificateUpload, setCertificateUpload] = useState<File | null>(null);
+  const [companyEmail, setCompanyEmail] = useState("");
+  const [officeAddress, setOfficeAddress] = useState("");
+  const [hrManagerName, setHrManagerName] = useState("");
+  const [hrManagerPhone, setHrManagerPhone] = useState("");
+  const [websiteOrSocialLink, setWebsiteOrSocialLink] = useState("");
+
+  // Business-specific fields
+  const [businessName, setBusinessName] = useState("");
+  const [businessType, setBusinessType] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [ownerId, setOwnerId] = useState("");
+  const [ownerPhone, setOwnerPhone] = useState("");
+  const [businessLogoOrPhoto, setBusinessLogoOrPhoto] = useState<File | null>(
+    null
+  );
 
   const handleAddKeyword = () => {
     if (keywordInput.trim() && !keywords.includes(keywordInput.trim())) {
@@ -134,9 +155,36 @@ const PostJob = () => {
       return;
     }
 
-    if (!jobTitle || !company || !location || !jobType || !description) {
-      toast.error("Please fill in all required fields");
-      return;
+    // Validate required fields for company/business
+    if (accountType === "company") {
+      if (
+        !company ||
+        (!cacNumber && !certificateUpload) ||
+        !companyEmail ||
+        !officeAddress ||
+        !hrManagerName ||
+        !hrManagerPhone
+      ) {
+        toast.error("Please fill in all required company fields");
+        return;
+      }
+    } else if (accountType === "business") {
+      if (
+        !businessName ||
+        !businessType ||
+        !businessAddress ||
+        !ownerName ||
+        !ownerId ||
+        !ownerPhone
+      ) {
+        toast.error("Please fill in all required business fields");
+        return;
+      }
+    } else {
+      if (!jobTitle || !company || !location || !jobType || !description) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
     }
 
     setLoading(true);
@@ -170,44 +218,134 @@ const PostJob = () => {
           setIsUploadingMedia(false);
         }
       }
-      const jobData = {
-        title: jobTitle,
-        company,
-        location,
-        jobType,
-        experienceLevel: experienceLevel || null,
-        salary: {
-          min: salaryMin ? parseInt(salaryMin) : null,
-          max: salaryMax ? parseInt(salaryMax) : null,
-          currency: currency || "USD",
-        },
-        description,
-        // store requirements as an array (one per line) to match AdminJobs format
-        requirements: (requirements || "")
-          .split("\n")
-          .map((r) => r.trim())
-          .filter(Boolean),
-        benefits: benefits,
-        industry: industry || null,
-        keywords,
-        media,
-        postedById: user.uid,
-        posterName: (profile as any)?.firstName || "Unknown",
-        // Ensure posterType is never undefined (Firestore rejects undefined values)
-        posterType: accountType || "unknown",
-        status: "active",
-        views: 0,
-        likes: 0,
-        // set banner/logo from first uploaded media for nicer job card/banner display
-        bannerUrl: media && media.length > 0 ? media[0] : null,
-        logoUrl: media && media.length > 0 ? media[0] : null,
-        applies: 0,
-        // legacy compatibility: some UI expects `applications` field
-        applications: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        postedAt: serverTimestamp(),
-      };
+      let jobData: any = {};
+      if (accountType === "company") {
+        jobData = {
+          type: "company",
+          companyName: company,
+          cacNumber,
+          certificateUpload: certificateUpload ? certificateUpload.name : null, // store file name or URL after upload
+          companyEmail,
+          officeAddress,
+          hrManagerName,
+          hrManagerPhone,
+          websiteOrSocialLink,
+          isActive: true,
+          // ...common job fields
+          title: jobTitle,
+          location,
+          jobType,
+          experienceLevel: experienceLevel || null,
+          salary: {
+            min: salaryMin ? parseInt(salaryMin) : null,
+            max: salaryMax ? parseInt(salaryMax) : null,
+            currency: currency || "USD",
+          },
+          description,
+          requirements: (requirements || "")
+            .split("\n")
+            .map((r) => r.trim())
+            .filter(Boolean),
+          benefits: benefits,
+          industry: industry || null,
+          keywords,
+          media,
+          postedById: user.uid,
+          posterName: (profile as any)?.firstName || "Unknown",
+          posterType: accountType || "company",
+          status: "active",
+          views: 0,
+          likes: 0,
+          bannerUrl: media && media.length > 0 ? media[0] : null,
+          logoUrl: media && media.length > 0 ? media[0] : null,
+          applies: 0,
+          applications: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          postedAt: serverTimestamp(),
+        };
+      } else if (accountType === "business") {
+        jobData = {
+          type: "business",
+          businessName,
+          businessType,
+          businessAddress,
+          ownerName,
+          ownerId,
+          ownerPhone,
+          businessLogoOrPhoto: businessLogoOrPhoto
+            ? businessLogoOrPhoto.name
+            : null, // store file name or URL after upload
+          isActive: true,
+          // ...common job fields
+          title: jobTitle,
+          location,
+          jobType,
+          experienceLevel: experienceLevel || null,
+          salary: {
+            min: salaryMin ? parseInt(salaryMin) : null,
+            max: salaryMax ? parseInt(salaryMax) : null,
+            currency: currency || "USD",
+          },
+          description,
+          requirements: (requirements || "")
+            .split("\n")
+            .map((r) => r.trim())
+            .filter(Boolean),
+          benefits: benefits,
+          industry: industry || null,
+          keywords,
+          media,
+          postedById: user.uid,
+          posterName: (profile as any)?.firstName || "Unknown",
+          posterType: accountType || "business",
+          status: "active",
+          views: 0,
+          likes: 0,
+          bannerUrl: media && media.length > 0 ? media[0] : null,
+          logoUrl: media && media.length > 0 ? media[0] : null,
+          applies: 0,
+          applications: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          postedAt: serverTimestamp(),
+        };
+      } else {
+        jobData = {
+          title: jobTitle,
+          company,
+          location,
+          jobType,
+          experienceLevel: experienceLevel || null,
+          salary: {
+            min: salaryMin ? parseInt(salaryMin) : null,
+            max: salaryMax ? parseInt(salaryMax) : null,
+            currency: currency || "USD",
+          },
+          description,
+          requirements: (requirements || "")
+            .split("\n")
+            .map((r) => r.trim())
+            .filter(Boolean),
+          benefits: benefits,
+          industry: industry || null,
+          keywords,
+          media,
+          postedById: user.uid,
+          posterName: (profile as any)?.firstName || "Unknown",
+          posterType: accountType || "unknown",
+          status: "active",
+          views: 0,
+          likes: 0,
+          bannerUrl: media && media.length > 0 ? media[0] : null,
+          logoUrl: media && media.length > 0 ? media[0] : null,
+          applies: 0,
+          applications: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          postedAt: serverTimestamp(),
+        };
+      }
 
       // Sanitize jobData: Firestore rejects `undefined` values anywhere in the object.
       // Convert undefined -> null (or remove keys) so addDoc never fails with unsupported value.
