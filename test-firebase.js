@@ -10,42 +10,37 @@ const __dirname = dirname(__filename);
 
 console.log("🔍 Testing Firebase Admin SDK connection...\n");
 
-// Try to find service account key
-const possiblePaths = [
-  join(__dirname, "scripts", "serviceAccountKey.json"),
-  join(__dirname, "jobfolio-f5b8c-firebase-adminsdk-fbsvc-34f25815d4.json"),
-  join(__dirname, "jobfolio-f5b8c-firebase-adminsdk-fbsvc-bb6425bed8.json"),
-];
+// Prefer env-based credentials: FIREBASE_SERVICE_ACCOUNT_JSON, SERVICE_ACCOUNT_BASE64, or SERVICE_ACCOUNT_PATH
+const svcJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || null;
+const saBase64 = process.env.SERVICE_ACCOUNT_BASE64 || null;
+const saPath = process.env.SERVICE_ACCOUNT_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS || null;
 
-let saPath = null;
-for (const path of possiblePaths) {
-  if (fs.existsSync(path)) {
-    saPath = path;
-    console.log("✅ Found service account:", path);
-    break;
-  }
-}
-
-if (!saPath) {
-  console.error("❌ No service account key found in:");
-  possiblePaths.forEach(path => console.error(`  - ${path}`));
+if (!svcJson && !saBase64 && !saPath) {
+  console.error("❌ No service account credentials provided. Set FIREBASE_SERVICE_ACCOUNT_JSON, SERVICE_ACCOUNT_BASE64, or SERVICE_ACCOUNT_PATH.");
   process.exit(1);
 }
 
 try {
-  const serviceAccountText = fs.readFileSync(saPath, "utf-8");
-  const serviceAccount = JSON.parse(serviceAccountText);
-  
+  let serviceAccount = null;
+  if (svcJson) {
+    serviceAccount = JSON.parse(svcJson);
+  } else if (saBase64) {
+    serviceAccount = JSON.parse(Buffer.from(saBase64, 'base64').toString('utf8'));
+  } else {
+    if (!fs.existsSync(saPath)) {
+      throw new Error(`Service account file not found at: ${saPath}`);
+    }
+    serviceAccount = JSON.parse(fs.readFileSync(saPath, 'utf-8'));
+  }
+
   console.log("📋 Service Account Info:");
   console.log(`  Project ID: ${serviceAccount.project_id}`);
   console.log(`  Client Email: ${serviceAccount.client_email}`);
   console.log(`  Private Key ID: ${serviceAccount.private_key_id}`);
-  
+
   // Initialize Firebase Admin
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-  
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+
   console.log("✅ Firebase Admin SDK initialized successfully!");
   
   // Test Firestore connection

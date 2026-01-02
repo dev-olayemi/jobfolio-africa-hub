@@ -30,21 +30,35 @@ The `GOOGLE_APPLICATION_CREDENTIALS` is a path to a **service account JSON file*
 
 ![Screenshot: Generate New Private Key Button](https://via.placeholder.com/400x200?text=Generate+New+Private+Key)
 
-### Step 5: Download and Save the File
+## Step 5: Download and Provide Credentials Securely
 
-1. A JSON file will automatically download (usually named something like `jobfolio-f5b8c-xxx.json`)
-2. **Save it in your project** in a safe location, e.g.:
+1. A JSON file will automatically download (usually named something like `jobfolio-f5b8c-xxx.json`).
+2. Preferred: do NOT store this file in the repository. Instead, provide credentials via environment variables:
 
-   ```
-   C:\Users\YourUsername\Documents\GitHub\jobfolio-africa-hub\scripts\serviceAccountKey.json
-   ```
+    - Full JSON string (useful for CI):
 
-3. **IMPORTANT: Do NOT commit this file to git!**
-   - The file contains secret credentials
-   - Add it to `.gitignore`:
-     ```
-     scripts/serviceAccountKey.json
-     ```
+       ```bash
+       export FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account", ... }'
+       ```
+
+    - Base64 encoded JSON (safe for env files):
+
+       ```bash
+       export SERVICE_ACCOUNT_BASE64=$(base64 -w0 path/to/serviceAccount.json)
+       ```
+
+    - Or (less preferred) provide the absolute file path on your machine:
+
+       ```bash
+       export SERVICE_ACCOUNT_PATH=/absolute/path/to/serviceAccountKey.json
+       ```
+
+3. If you must save the JSON file locally, keep it out of version control by adding it to `.gitignore`:
+
+    ```text
+    scripts/serviceAccountKey.json
+    jobfolio-*.json
+    ```
 
 ## Your File Should Look Like This
 

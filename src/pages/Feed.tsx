@@ -1,60 +1,112 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Layout } from "@/components/Layout";
-import PostCard from "@/components/PostCard";
-import { useAuth } from "@/contexts/AuthContext";
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { Image, Video, Smile, Send, X, Sparkles, Link as LinkIcon, Plus } from "lucide-react";
-import { Link } from "react-router-dom";
+          {/* Create Post Card */}
+          <div className={`bg-card border border-border rounded-xl p-4 mb-6 transition-all ${isFocused ? "shadow-lg ring-2 ring-primary/20" : "shadow-sm"}`}>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Avatar className="h-10 w-10 sm:h-11 sm:w-11 ring-2 ring-primary/10">
+                <AvatarImage src={profile?.profilePicture || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                  {(profile?.firstName?.[0] || profile?.displayName?.[0] || user?.email?.[0] || "U").toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
 
-const Feed = () => {
-  const { user, profile } = useAuth();
-  const [posts, setPosts] = useState<any[]>([]);
-  const [content, setContent] = useState("");
-  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
-  const [mediaInput, setMediaInput] = useState("");
-  const [isPosting, setIsPosting] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const [showMediaInput, setShowMediaInput] = useState(false);
+              <div className="flex-1">
+                {user ? (
+                  <>
+                    <textarea
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      onFocus={() => setIsFocused(true)}
+                      placeholder={`What's happening, ${profile?.firstName || profile?.displayName || "there"}?`}
+                      className="w-full min-h-[64px] sm:min-h-[80px] p-3 rounded-lg border border-input resize-none bg-muted/30 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground/60"
+                    />
 
-  useEffect(() => {
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      const arr: any[] = [];
-      snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
-      setPosts(arr);
-    });
-    return () => unsub();
-  }, []);
+                    <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border flex items-center gap-2">
+                      <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-muted-foreground hover:text-primary"
+                      >
+                        <Image className="h-5 w-5 mr-1" />
+                        <span className="hidden sm:inline">Upload</span>
+                      </Button>
 
-  const addMediaUrl = () => {
-    if (!mediaInput.trim()) return;
-    
-    // Basic URL validation
-    try {
-      new URL(mediaInput);
-      setMediaUrls(prev => [...prev, mediaInput.trim()]);
-      setMediaInput("");
-      setShowMediaInput(false);
-      toast.success("Media added!");
-    } catch {
-      toast.error("Please enter a valid URL");
+                      <Input
+                        value={mediaInput}
+                        onChange={(e) => setMediaInput(e.target.value)}
+                        placeholder="Paste image or video URL here..."
+                        className="flex-1"
+                        onKeyPress={(e) => e.key === 'Enter' && addMediaUrl()}
+                      />
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setMediaInput(""); setShowMediaInput(false); }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {mediaUrls.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {mediaUrls.map((m, i) => (
+                          <div key={i} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg border border-border group">
+                            {m.type === 'image' && <Image className="h-4 w-4 text-blue-500" />}
+                            {m.type === 'video' && <Video className="h-4 w-4 text-purple-500" />}
+                            {m.type === 'unknown' && <LinkIcon className="h-4 w-4 text-gray-500" />}
+
+                            <span className="flex-1 text-sm truncate">{m.uploading ? 'Uploading...' : m.url}</span>
+
+                            <Button onClick={() => removeMediaUrl(i)} variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0">
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50 flex-wrap">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-primary">
+                          <Image className="h-5 w-5 mr-1" />
+                          <span className="hidden sm:inline">Media</span>
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-primary" disabled>
+                          <Smile className="h-5 w-5 mr-1" />
+                          <span className="hidden sm:inline">Emoji</span>
+                        </Button>
+                      </div>
+
+                      <div className="w-full sm:w-auto mt-3 sm:mt-0 sm:ml-4">
+                        <Button onClick={handlePost} disabled={isPosting || (!content.trim() && mediaUrls.length === 0)} className="w-full sm:w-auto px-4 sm:px-6">
+                          {isPosting ? 'Posting...' : (
+                            <>
+                              <Send className="h-4 w-4 mr-2" />
+                              <span className="hidden sm:inline">Share</span>
+                              <span className="sm:hidden">Post</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-6 text-center">
+                    <p className="text-muted-foreground mb-3">Sign in to share updates with the community</p>
+                    <Link to="/auth">
+                      <Button>Sign In</Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
     }
-  };
-
-  const removeMediaUrl = (index: number) => {
-    setMediaUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   const handlePost = async () => {
@@ -77,7 +129,7 @@ const Feed = () => {
         authorAvatar: profile.profilePicture || null,
         title: null,
         body: content.trim(),
-        media: mediaUrls,
+        media: mediaUrls.map(m => m.url),
         tags: [],
         likes: 0,
         comments: 0,
@@ -164,6 +216,17 @@ const Feed = () => {
                           <span className="hidden sm:inline">Media</span>
                       <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border">
                         <div className="flex gap-2">
+                          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-muted-foreground hover:text-primary"
+                          >
+                            <Image className="h-5 w-5 mr-1" />
+                            <span className="hidden sm:inline">Media</span>
+                          </Button>
                           <Input
                             value={mediaInput}
                             onChange={(e) => setMediaInput(e.target.value)}

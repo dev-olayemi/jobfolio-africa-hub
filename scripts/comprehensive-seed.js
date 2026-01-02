@@ -24,32 +24,37 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Initialize Firebase Admin (reuse existing logic)
-let saPath = null;
-const possiblePaths = [
-  join(__dirname, "serviceAccountKey.json"),
-  join(__dirname, "..", "jobfolio-f5b8c-firebase-adminsdk-fbsvc-34f25815d4.json"),
-  join(__dirname, "..", "jobfolio-f5b8c-firebase-adminsdk-fbsvc-bb6425bed8.json"),
-];
+// Initialize Firebase Admin via one of these env vars (priority order):
+// 1. FIREBASE_SERVICE_ACCOUNT_JSON - full JSON string
+// 2. SERVICE_ACCOUNT_BASE64 - base64-encoded JSON
+// 3. SERVICE_ACCOUNT_PATH or GOOGLE_APPLICATION_CREDENTIALS - path to JSON file
+const svcJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || null;
+const saBase64 = process.env.SERVICE_ACCOUNT_BASE64 || null;
+const saPath = process.env.SERVICE_ACCOUNT_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS || null;
 
-for (const path of possiblePaths) {
-  if (fs.existsSync(path)) {
-    saPath = path;
-    console.log("✅ Found service account:", path);
-    break;
-  }
-}
-
-if (!saPath) {
-  console.error("❌ No service account key found");
+if (!svcJson && !saBase64 && !saPath) {
+  console.error("❌ No service account key provided. Set FIREBASE_SERVICE_ACCOUNT_JSON, SERVICE_ACCOUNT_BASE64, or SERVICE_ACCOUNT_PATH.");
   process.exit(1);
 }
 
 try {
-  const serviceAccount = JSON.parse(fs.readFileSync(saPath, "utf-8"));
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-  console.log("✅ Firebase Admin SDK initialized");
+  if (svcJson) {
+    const serviceAccount = JSON.parse(svcJson);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    console.log("✅ Firebase Admin SDK initialized via FIREBASE_SERVICE_ACCOUNT_JSON");
+  } else if (saBase64) {
+    const decoded = Buffer.from(saBase64, "base64").toString("utf8");
+    const serviceAccount = JSON.parse(decoded);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    console.log("✅ Firebase Admin SDK initialized via SERVICE_ACCOUNT_BASE64");
+  } else {
+    if (!fs.existsSync(saPath)) {
+      throw new Error(`Service account file not found at provided path: ${saPath}`);
+    }
+    const serviceAccount = JSON.parse(fs.readFileSync(saPath, "utf-8"));
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    console.log("✅ Firebase Admin SDK initialized via SERVICE_ACCOUNT_PATH");
+  }
 } catch (error) {
   console.error("❌ Failed to initialize Firebase:", error.message);
   process.exit(1);
