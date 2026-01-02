@@ -249,13 +249,9 @@ const Auth = () => {
 
               {accountType && isSignUp && (
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
-                  <Badge className="mb-2 capitalize">{accountType}</Badge>
+                  <Badge className="mb-2">{displayRoleName(accountType)}</Badge>
                   <p className="text-sm text-foreground font-semibold">
-                    {accountType === "recruiter"
-                      ? "Recruiter Registration"
-                      : accountType === "company"
-                      ? "Company Registration"
-                      : "Employer Registration"}
+                    {displayRoleName(accountType)} Registration
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {accountType === "recruiter"
@@ -374,8 +370,8 @@ const Auth = () => {
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Change account type
                   </Button>
-                  <CardTitle className="text-2xl capitalize">
-                    Register as {accountType}
+                  <CardTitle className="text-2xl">
+                    Register as {displayRoleName(accountType)}
                   </CardTitle>
                   <CardDescription>
                     {accountType === "recruiter"
@@ -874,3 +870,14 @@ const capitalizeFirst = (str: string) => {
 };
 
 export default Auth;
+
+// Helper to map internal account type ids to friendly display names
+function displayRoleName(
+  accountType: "jobseeker" | "recruiter" | "company" | null
+) {
+  if (!accountType) return "User";
+  if (accountType === "recruiter") return "Agent";
+  if (accountType === "jobseeker") return "Job Seeker";
+  if (accountType === "company") return "Company";
+  return accountType;
+}

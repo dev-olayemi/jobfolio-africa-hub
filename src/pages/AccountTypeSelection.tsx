@@ -9,9 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Users, Building2, User, ArrowRight } from "lucide-react";
+import { Briefcase, Users, Building2, User, ArrowRight, Search, UserCheck } from "lucide-react";
 
-type AccountType = "jobseeker" | "recruiter" | "company" | "employer" | null;
+type AccountType = "jobseeker" | "agent" | "company" | null;
 
 const AccountTypeSelection = () => {
   const navigate = useNavigate();
@@ -19,57 +19,48 @@ const AccountTypeSelection = () => {
   const [selectedType, setSelectedType] = useState<AccountType>(null);
   const isSignUp = location.state?.isSignUp || false;
 
+  // Updated to use the new 3 account types
   const accountTypes = [
     {
       id: "jobseeker",
       title: "Job Seeker",
-      description: "Looking for job opportunities",
-      icon: User,
+      description: "Looking for job opportunities and career growth",
+      icon: Search,
       color: "from-blue-500 to-blue-600",
       details: [
-        "Browse job listings",
-        "Apply to positions",
-        "Manage applications",
-        "Refine your CV",
+        "Browse and apply to jobs",
+        "Build professional profile",
+        "Save favorite jobs",
+        "Track application status",
+        "Get job recommendations"
       ],
     },
     {
-      id: "recruiter",
-      title: "Recruiter",
-      description: "Find and hire talent",
-      icon: Briefcase,
-      color: "from-purple-500 to-purple-600",
+      id: "agent",
+      title: "Agent/Recruiter",
+      description: "Recruitment agencies, HR consultants, and individual recruiters",
+      icon: UserCheck,
+      color: "from-green-500 to-green-600",
       details: [
-        "Post job openings",
-        "Find candidates",
-        "Manage applications",
-        "Build team",
+        "Post jobs for clients",
+        "Manage multiple job postings",
+        "Screen and manage applications",
+        "Build candidate database",
+        "Track recruitment metrics"
       ],
     },
     {
       id: "company",
-      title: "Company",
-      description: "Hire for your organization",
+      title: "Company/Employer",
+      description: "Companies and organizations hiring directly",
       icon: Building2,
-      color: "from-green-500 to-green-600",
+      color: "from-purple-500 to-purple-600",
       details: [
-        "Company profile",
-        "Post multiple jobs",
-        "Manage team hiring",
-        "Access analytics",
-      ],
-    },
-    {
-      id: "employer",
-      title: "Individual Employer",
-      description: "Hire for your business",
-      icon: Briefcase,
-      color: "from-orange-500 to-orange-600",
-      details: [
-        "Post jobs",
-        "Small team hiring",
-        "Direct applicant contact",
-        "Flexible hiring",
+        "Post company jobs directly",
+        "Manage hiring pipeline",
+        "Review applications",
+        "Build employer brand",
+        "Access talent pool"
       ],
     },
   ];
@@ -100,7 +91,7 @@ const AccountTypeSelection = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
             {accountTypes.map((type) => {
               const IconComponent = type.icon;
               const isSelected = selectedType === type.id;
@@ -154,6 +145,17 @@ const AccountTypeSelection = () => {
             <Button variant="outline" onClick={() => navigate("/")} size="lg">
               Go Back
             </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => navigate("/login", { state: { accountType: selectedType } })}
+              size="lg"
+              className="gap-2"
+            >
+              Login
+            </Button>
+
             <Button
               onClick={handleContinue}
               disabled={!selectedType}

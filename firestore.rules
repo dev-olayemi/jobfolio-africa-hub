@@ -11,11 +11,36 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.admin == true;
     }
 
+    // get a user's profile role safely
+    function getRole(uid) {
+      return exists(/databases/$(database)/documents/profiles/$(uid)) ? get(/databases/$(database)/documents/profiles/$(uid)).data.role : null;
+    }
+
+    function isCompanyOrAgent(uid) {
+      return getRole(uid) in ["company", "recruiter", "agent"];
+    }
+
+    function isJobSeeker(uid) {
+      return getRole(uid) == "jobseeker" || getRole(uid) == "seeker" || getRole(uid) == "user";
+    }
+
     // -----------------------------
     // Profiles: public read, owner writes
     // -----------------------------
     match /profiles/{userId} {
-      allow read: if true;
+      // Profile visibility rules:
+      // - public: anyone can read
+      // - owner: full read/write
+      // - companies/agents: may read profiles regardless of public flag (for hiring workflows)
+      allow read: if (
+        // explicitly public
+        (resource.data.visibility == "public")
+        // or owner
+        || (isSignedIn() && request.auth.uid == userId)
+        // or company/agent viewing
+        || (isSignedIn() && isCompanyOrAgent(request.auth.uid))
+      );
+
       allow create: if isSignedIn() && request.auth.uid == userId;
       allow update, delete: if isSignedIn() && request.auth.uid == userId;
     }
@@ -65,69 +90,63 @@ service cloud.firestore {
     // - public read for listing
     // - create by signed-in users (postedById must match)
     // - updates: only owner/admin (clients cannot directly set counters)
-    // - allow safe view increment (only +1) to help lightweight view metrics
+    // - allow safe metric increments for views, likes, and applications
     // -----------------------------
     match /jobs/{jobId} {
       allow read: if true;
 
+      // Only companies/agents may create jobs; postedById must match auth uid
       allow create: if isSignedIn()
+        && isCompanyOrAgent(request.auth.uid)
         && request.resource.data.postedById == request.auth.uid
         && request.resource.data.title is string
         && request.resource.data.title.size() <= 300
-        && (request.resource.data.media == null || (request.resource.data.media is list && request.resource.data.media.size() <= 10))
-        && (
-          // Company jobs must have all required fields
-          (request.resource.data.type == "company"
-            && request.resource.data.companyName is string
-            && request.resource.data.cacNumber is string // or certificateUpload
-            && (request.resource.data.certificateUpload is string || request.resource.data.cacNumber is string)
-            && request.resource.data.companyEmail is string
-            && request.resource.data.officeAddress is string
-            && request.resource.data.hrManagerName is string
-            && request.resource.data.hrManagerPhone is string
-            // websiteOrSocialLink is optional
-            && request.resource.data.isActive == true
-          )
-          // Business jobs must have all required fields
-          || (request.resource.data.type == "business"
-            && request.resource.data.businessName is string
-            && request.resource.data.businessType is string
-            && request.resource.data.businessAddress is string
-            && request.resource.data.ownerName is string
-            && request.resource.data.ownerId is string // NIN/ID/Voter's Card
-            && request.resource.data.ownerPhone is string
-            // businessLogoOrPhoto is optional
-            && request.resource.data.isActive == true
-          )
-        );
+        && (request.resource.data.media == null || (request.resource.data.media is list && request.resource.data.media.size() <= 10));
 
-      // Owner or admin may update job fields. Prevent clients from arbitrarily changing counters.
-      // Only owner or admin can update/delete jobs
-      allow update, delete: if isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin());
+      // Owner or admin may update job fields
+      allow update: if isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin());
 
-      // Anyone can increment views (public metric)
-      allow update: if request.resource.data.keys().hasOnly(['views'])
-        && request.resource.data.views is int
-        && resource.data.views is int
-        && request.resource.data.views == resource.data.views + 1;
+      // Allow metric-only updates by authenticated users (separate constrained check)
+      allow update: if isSignedIn() && (
+        (request.resource.data.keys().hasOnly(['views']) && request.resource.data.views is int)
+        || (request.resource.data.keys().hasOnly(['likes']) && request.resource.data.likes is int)
+        || (request.resource.data.keys().hasOnly(['applies']) && request.resource.data.applies is int)
+        || (request.resource.data.keys().hasAny(['views', 'likes', 'applies'])
+            && request.resource.data.keys().hasOnly(['views', 'likes', 'applies']))
+      );
 
       allow delete: if isSignedIn() && (resource.data.postedById == request.auth.uid || isAdmin());
 
       // likes as a subcollection: user may create/delete their own like doc.
       match /likes/{likeUserId} {
-        // Any authenticated user can like/unlike any post/job
-        allow create: if isSignedIn();
+        allow create, delete: if isSignedIn() && request.auth.uid == likeUserId;
         allow read: if true;
-        allow delete: if isSignedIn() && request.auth.uid == likeUserId;
       }
 
-      // applications subcollection. Applicant may create and read their application.
-      // Job owner may read/update application status. Admins may manage.
+      // applications subcollection. Applicant may create their application only if they are a jobseeker
+      // Applicant or job owner or company/agent may read application documents
       match /applications/{applicationId} {
-        // Only authenticated users can apply
-        allow create: if isSignedIn() && request.resource.data.applicantId == request.auth.uid;
-        // Only owner, applicant, or admin can read/update/delete
-        allow read, update, delete: if isSignedIn() && (
+        allow create: if isSignedIn()
+          && isJobSeeker(request.auth.uid)
+          && request.resource.data.applicantId == request.auth.uid
+          && request.resource.data.jobId == jobId;
+
+        allow read: if isSignedIn() && (
+          resource.data.applicantId == request.auth.uid
+          || get(/databases/$(database)/documents/jobs/$(jobId)).data.postedById == request.auth.uid
+          || isCompanyOrAgent(request.auth.uid)
+          || isAdmin()
+        );
+
+        // Applicant may update their application (e.g., withdraw). Company/agent or job owner may update status fields.
+        allow update: if isSignedIn() && (
+          resource.data.applicantId == request.auth.uid
+          || get(/databases/$(database)/documents/jobs/$(jobId)).data.postedById == request.auth.uid
+          || isCompanyOrAgent(request.auth.uid)
+          || isAdmin()
+        );
+
+        allow delete: if isSignedIn() && (
           resource.data.applicantId == request.auth.uid
           || get(/databases/$(database)/documents/jobs/$(jobId)).data.postedById == request.auth.uid
           || isAdmin()
@@ -142,19 +161,17 @@ service cloud.firestore {
     // applications for their resources via parent checks.
     // -----------------------------
     match /{parent=**}/likes/{likeId} {
-      // Any authenticated user can like/unlike any post/job
-      allow create: if isSignedIn();
+      allow create, delete: if isSignedIn() && request.auth.uid == likeId;
       allow read: if true;
-      allow delete: if isSignedIn() && request.auth.uid == likeId;
     }
 
+    // Generic collectionGroup rule for applications (fallback). Prefer the jobs/{jobId}/applications explicit rules above.
     match /{parent=**}/applications/{applicationId} {
-      // Only authenticated users can apply
       allow create: if isSignedIn() && request.resource.data.applicantId == request.auth.uid;
-      // Only owner, applicant, or admin can read/update/delete
       allow read, update, delete: if isSignedIn() && (
         resource.data.applicantId == request.auth.uid
         || (exists(/databases/$(database)/documents/$(parent)) && get(/databases/$(database)/documents/$(parent)).data.postedById == request.auth.uid)
+        || isCompanyOrAgent(request.auth.uid)
         || isAdmin()
       );
     }

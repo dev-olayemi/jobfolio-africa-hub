@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { doc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc } from "firebase/firestore";
+import { useState } from "react";
+import { doc, updateDoc, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Heart, MessageCircle, Share2, Clock, ChevronDown, ChevronUp, Send, MoreHorizontal, Trash2 } from "lucide-react";
@@ -34,10 +34,10 @@ const PostCard = ({ post }: { post: any }) => {
   const [loadingComments, setLoadingComments] = useState(false);
 
   const MAX_CONTENT_LENGTH = 280;
-  const contentIsLong = post.content && post.content.length > MAX_CONTENT_LENGTH;
+  const contentIsLong = post.body && post.body.length > MAX_CONTENT_LENGTH;
   const displayContent = expanded || !contentIsLong 
-    ? post.content 
-    : post.content.slice(0, MAX_CONTENT_LENGTH) + "...";
+    ? post.body 
+    : post.body?.slice(0, MAX_CONTENT_LENGTH) + "...";
 
   const toggleLike = async () => {
     if (!user) {
@@ -47,11 +47,19 @@ const PostCard = ({ post }: { post: any }) => {
     setIsLiking(true);
     try {
       const postRef = doc(db, "posts", post.id);
-      const hasLiked = Array.isArray(post.likes) && post.likes.includes(user.uid);
+      const currentLikes = post.likes || 0;
+      const hasLiked = Array.isArray(post.likes) ? post.likes.includes(user.uid) : false;
+      
       if (hasLiked) {
-        await updateDoc(postRef, { likes: arrayRemove(user.uid) });
+        // Unlike: remove from array and decrement count
+        await updateDoc(postRef, { 
+          likes: Math.max(0, currentLikes - 1)
+        });
       } else {
-        await updateDoc(postRef, { likes: arrayUnion(user.uid) });
+        // Like: add to array and increment count
+        await updateDoc(postRef, { 
+          likes: currentLikes + 1
+        });
       }
     } catch (err) {
       console.error("Failed to toggle like", err);
@@ -99,15 +107,17 @@ const PostCard = ({ post }: { post: any }) => {
       const commentsRef = collection(db, "posts", post.id, "comments");
       await addDoc(commentsRef, {
         authorId: user.uid,
-        authorName: `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || user.email,
-        authorPhoto: profile?.profilePictureUrl || null,
-        content: newComment.trim(),
+        authorName: profile?.displayName || `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() || "Anonymous",
+        authorAvatar: profile?.profilePicture || null,
+        body: newComment.trim(),
+        likes: 0,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       // Update comments count
       const postRef = doc(db, "posts", post.id);
-      await updateDoc(postRef, { commentsCount: (post.commentsCount || 0) + 1 });
+      await updateDoc(postRef, { comments: (post.comments || 0) + 1 });
 
       setNewComment("");
       toast.success("Comment added");
@@ -126,7 +136,7 @@ const PostCard = ({ post }: { post: any }) => {
       try {
         await navigator.share({
           title: `Post by ${post.authorName}`,
-          text: post.content?.slice(0, 100) + "...",
+          text: post.body?.slice(0, 100) + "...",
           url: shareUrl,
         });
       } catch (err) {
@@ -156,8 +166,8 @@ const PostCard = ({ post }: { post: any }) => {
     ? formatTimeAgo(post.createdAt.toDate())
     : post?.createdAt || "";
 
-  const hasLiked = Array.isArray(post.likes) && user && post.likes.includes(user.uid);
-  const likesCount = Array.isArray(post.likes) ? post.likes.length : 0;
+  const hasLiked = false; // We'll implement like tracking later
+  const likesCount = post.likes || 0;
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 transition-all hover:shadow-md">
@@ -245,7 +255,7 @@ const PostCard = ({ post }: { post: any }) => {
       )}
 
       {/* Stats Bar */}
-      {(likesCount > 0 || (post.commentsCount || 0) > 0) && (
+      {(likesCount > 0 || (post.comments || 0) > 0) && (
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 pb-3 border-b border-border/50">
           {likesCount > 0 && (
             <span className="flex items-center gap-1">
@@ -253,8 +263,8 @@ const PostCard = ({ post }: { post: any }) => {
               {likesCount} {likesCount === 1 ? "like" : "likes"}
             </span>
           )}
-          {(post.commentsCount || 0) > 0 && (
-            <span>{post.commentsCount} {post.commentsCount === 1 ? "comment" : "comments"}</span>
+          {(post.comments || 0) > 0 && (
+            <span>{post.comments} {post.comments === 1 ? "comment" : "comments"}</span>
           )}
         </div>
       )}
@@ -295,7 +305,7 @@ const PostCard = ({ post }: { post: any }) => {
           {/* Comment Input */}
           <div className="flex items-center gap-3 mb-4">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={profile?.profilePictureUrl || undefined} />
+              <AvatarImage src={profile?.profilePicture || undefined} />
               <AvatarFallback className="bg-primary/10 text-primary text-xs">
                 {profile?.firstName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || "U"}
               </AvatarFallback>

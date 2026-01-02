@@ -16,18 +16,77 @@ Make sure you run it against a dev/test project.
 import admin from "firebase-admin";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { dirname } from "path";
+import { dirname, join } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const saPath =
-  process.env.SERVICE_ACCOUNT_PATH ||
-  process.env.GOOGLE_APPLICATION_CREDENTIALS;
+let saPath = process.env.SERVICE_ACCOUNT_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const saBase64 = process.env.SERVICE_ACCOUNT_BASE64 || null;
+// If no env var provided, try to use the repository-level service account file if present.
+const saSearchDirs = [__dirname, join(__dirname, "..")];
+
+const findServiceAccountInDirs = () => {
+  for (const d of saSearchDirs) {
+    try {
+      const files = fs.readdirSync(d);
+      for (const f of files) {
+        const lower = f.toLowerCase();
+        if (lower.includes("firebase-adminsdk") || lower.includes("serviceaccount") || lower.includes("adminsdk")) {
+          const full = join(d, f);
+          try {
+            const txt = fs.readFileSync(full, "utf8");
+            const parsed = JSON.parse(txt);
+            if (parsed.private_key && parsed.client_email) {
+              return full;
+            }
+          } catch (e) {
+            // ignore parse errors
+          }
+        }
+      }
+    } catch (e) {
+      // ignore dir read errors
+    }
+  }
+  return null;
+};
+
 if (!saPath) {
-  console.error(
-    "Missing SERVICE_ACCOUNT_PATH or GOOGLE_APPLICATION_CREDENTIALS."
-  );
+  const possible = [
+    join(__dirname, "serviceAccountKey.json"),
+    join(__dirname, "..", "jobfolio-f5b8c-firebase-adminsdk-fbsvc-34f25815d4.json"),
+    join(__dirname, "..", "jobfolio-f5b8c-firebase-adminsdk-fbsvc-bb6425bed8.json"),
+  ];
+  for (const p of possible) {
+    if (fs.existsSync(p)) {
+      saPath = p;
+      console.log("Found service account file:", p);
+      break;
+    }
+  }
+  // final attempt: scan directories for any matching JSON
+  if (!saPath) {
+    const detected = findServiceAccountInDirs();
+    if (detected) {
+      saPath = detected;
+      console.log("Auto-detected service account file:", saPath);
+    }
+  }
+}
+
+// If a path was supplied (via env) but the file doesn't exist, try auto-detect before failing
+if (saPath && !fs.existsSync(saPath)) {
+  console.warn("Provided service account path does not exist:", saPath);
+  const detected = findServiceAccountInDirs();
+  if (detected) {
+    saPath = detected;
+    console.log("Found alternate service account file:", saPath);
+  }
+}
+
+if (!saPath) {
+  console.error("Missing SERVICE_ACCOUNT_PATH or GOOGLE_APPLICATION_CREDENTIALS, and no local service account found.");
   process.exit(1);
 }
 
@@ -36,12 +95,53 @@ if (!fs.existsSync(saPath)) {
   process.exit(1);
 }
 
-const serviceAccountText = fs.readFileSync(saPath, "utf-8");
-const serviceAccount = JSON.parse(serviceAccountText);
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// Initialize Firebase Admin SDK
+let app;
+try {
+  if (saBase64) {
+    // If SERVICE_ACCOUNT_BASE64 is provided, use it
+    console.log("Using SERVICE_ACCOUNT_BASE64 for initialization");
+    const decoded = Buffer.from(saBase64, "base64").toString("utf8");
+    const serviceAccount = JSON.parse(decoded);
+    app = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log("✅ Initialized Firebase Admin SDK using SERVICE_ACCOUNT_BASE64");
+  } else if (saPath) {
+    // Use service account file
+    console.log("Using service account file:", saPath);
+    const serviceAccountText = fs.readFileSync(saPath, "utf-8");
+    const serviceAccount = JSON.parse(serviceAccountText);
+    app = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log("✅ Initialized Firebase Admin SDK using service account file");
+  } else {
+    throw new Error("No service account configuration found");
+  }
+} catch (err) {
+  console.error("❌ Failed to initialize Firebase Admin SDK:", err.message);
+  
+  if (err.message.includes('invalid_grant') || err.message.includes('JWT')) {
+    console.error("\n🔧 JWT Token Error - This is usually caused by:");
+    console.error("1. System time not synchronized");
+    console.error("2. Service account key expired or revoked");
+    console.error("3. Clock skew between your machine and Google's servers");
+    console.error("\n💡 Solutions:");
+    console.error("• Generate a new service account key:");
+    console.error("  https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk");
+    console.error("• Sync your system time (run as administrator):");
+    console.error("  w32tm /resync");
+    console.error("• Try running this script immediately after generating a new key");
+  } else {
+    console.error("\n🔧 Troubleshooting steps:");
+    console.error("1. Check if your service account key file exists and is valid JSON");
+    console.error("2. Ensure your system time is synchronized");
+    console.error("3. Generate a new service account key from Firebase Console");
+    console.error("4. Make sure the service account has the correct permissions");
+  }
+  process.exit(1);
+}
 
 const db = admin.firestore();
 
@@ -163,6 +263,17 @@ async function seed() {
         views: 342,
         likes: 28,
         applies: 12,
+        postedById: createdUsers[1].uid, // Ben posts this job
+        postedByType: "company",
+        status: "active",
+        type: "company",
+        companyName: "Acme Africa",
+        cacNumber: "RC123456",
+        companyEmail: "hr@acme.africa",
+        officeAddress: "123 Victoria Island, Lagos, Nigeria",
+        hrManagerName: "Sarah Johnson",
+        hrManagerPhone: "+234-801-234-5678",
+        isActive: true,
       },
       {
         id: "job_product_1",
@@ -350,6 +461,159 @@ async function seed() {
         views: 189,
         likes: 13,
         applies: 7,
+      },
+      {
+        id: "job_hr_1",
+        title: "HR Manager",
+        company: "PeopleWorks",
+        location: "Lagos",
+        country: "Nigeria",
+        salary: "$700 - $1,200",
+        category: "Human Resources",
+        description: "Manage recruitment, onboarding and employee relations.",
+        requirements: ["HR experience", "Labour law knowledge"],
+        responsibilities: ["Recruitment", "Policy enforcement"],
+        contactEmail: "hr@peopleworks.ng",
+        logoUrl: "/favicon.png",
+        views: 143,
+        likes: 9,
+        applies: 4,
+      },
+      {
+        id: "job_finance_1",
+        title: "Finance Officer",
+        company: "GreenAgro",
+        location: "Kampala",
+        country: "Uganda",
+        salary: "$600 - $1,000",
+        category: "Finance",
+        description: "Support financial reporting and budgeting.",
+        requirements: ["Accounting background", "Excel"],
+        responsibilities: ["Reports", "Budget tracking"],
+        contactEmail: "finance@greenagro.ug",
+        logoUrl: "/favicon.png",
+        views: 98,
+        likes: 6,
+        applies: 3,
+      },
+      {
+        id: "job_customer_success_1",
+        title: "Customer Success Manager",
+        company: "SaaSify",
+        location: "Nairobi",
+        country: "Kenya",
+        salary: "$900 - $1,500",
+        category: "Customer Success",
+        description: "Drive adoption and retention for enterprise clients.",
+        requirements: ["Account management", "SaaS experience"],
+        responsibilities: ["Onboarding", "Customer retention"],
+        contactEmail: "careers@saasify.co.ke",
+        logoUrl: "/favicon.png",
+        views: 210,
+        likes: 20,
+        applies: 9,
+      },
+      {
+        id: "job_research_1",
+        title: "Research Analyst",
+        company: "PolicyLab",
+        location: "Addis Ababa",
+        country: "Ethiopia",
+        salary: "$500 - $900",
+        category: "Research",
+        description: "Conduct policy research and produce actionable briefs.",
+        requirements: ["Research methods", "Report writing"],
+        responsibilities: ["Field research", "Report drafting"],
+        contactEmail: "jobs@policylab.et",
+        logoUrl: "/favicon.png",
+        views: 76,
+        likes: 5,
+        applies: 2,
+      },
+      {
+        id: "job_qa_1",
+        title: "QA Engineer",
+        company: "BuildStack",
+        location: "Cape Town",
+        country: "South Africa",
+        salary: "$1,000 - $1,600",
+        category: "Engineering",
+        description: "Ensure product quality through automated testing.",
+        requirements: ["Selenium", "Test automation"],
+        responsibilities: ["Write tests", "Report bugs"],
+        contactEmail: "qa@buildstack.co.za",
+        logoUrl: "/favicon.png",
+        views: 132,
+        likes: 14,
+        applies: 6,
+      },
+      {
+        id: "job_data_scientist_1",
+        title: "Data Scientist",
+        company: "InsightAI",
+        location: "Lagos",
+        country: "Nigeria",
+        salary: "$1,500 - $2,500",
+        category: "Data",
+        description: "Build ML models for customer segmentation.",
+        requirements: ["Python", "Machine Learning"],
+        responsibilities: ["Modeling", "Experimentation"],
+        contactEmail: "jobs@insightai.ng",
+        logoUrl: "/favicon.png",
+        views: 260,
+        likes: 30,
+        applies: 12,
+      },
+      {
+        id: "job_account_manager_1",
+        title: "Account Manager",
+        company: "AdReach",
+        location: "Nairobi",
+        country: "Kenya",
+        salary: "$700 - $1,200",
+        category: "Sales",
+        description: "Manage client relationships and ad campaigns.",
+        requirements: ["Client-facing experience", "Ads platforms"],
+        responsibilities: ["Client meetings", "Campaign optimization"],
+        contactEmail: "hello@adreach.co.ke",
+        logoUrl: "/favicon.png",
+        views: 154,
+        likes: 11,
+        applies: 5,
+      },
+      {
+        id: "job_legal_1",
+        title: "Legal Counsel",
+        company: "SafeLaw",
+        location: "Accra",
+        country: "Ghana",
+        salary: "$1,200 - $2,000",
+        category: "Legal",
+        description: "Provide legal guidance on contracts and compliance.",
+        requirements: ["LLB", "Corporate law"],
+        responsibilities: ["Draft contracts", "Advise management"],
+        contactEmail: "legal@safelaw.gh",
+        logoUrl: "/favicon.png",
+        views: 98,
+        likes: 7,
+        applies: 3,
+      },
+      {
+        id: "job_health_1",
+        title: "Public Health Officer",
+        company: "Health4All",
+        location: "Kigali",
+        country: "Rwanda",
+        salary: "$500 - $900",
+        category: "Health",
+        description: "Support community health programs and monitoring.",
+        requirements: ["Public health background", "Program monitoring"],
+        responsibilities: ["Field support", "Data collection"],
+        contactEmail: "careers@health4all.rw",
+        logoUrl: "/favicon.png",
+        views: 64,
+        likes: 4,
+        applies: 1,
       },
     ];
 

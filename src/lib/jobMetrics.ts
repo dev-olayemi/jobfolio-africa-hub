@@ -19,11 +19,33 @@ import { db } from "./firebase";
 export async function recordJobView(jobId: string): Promise<void> {
   try {
     const jobRef = doc(db, "jobs", jobId);
+    
+    // First check if the job exists
+    const jobDoc = await getDoc(jobRef);
+    if (!jobDoc.exists()) {
+      console.warn(`Job ${jobId} does not exist`);
+      return;
+    }
+
     await updateDoc(jobRef, {
       views: increment(1),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error recording job view:", error);
+    
+    // If it's a permission error, try to initialize the field
+    if (error?.code === 'permission-denied') {
+      try {
+        const jobRef = doc(db, "jobs", jobId);
+        const jobDoc = await getDoc(jobRef);
+        if (jobDoc.exists() && !jobDoc.data()?.views) {
+          // Try to set initial views count if it doesn't exist
+          await updateDoc(jobRef, { views: 1 });
+        }
+      } catch (retryError) {
+        console.error("Retry failed:", retryError);
+      }
+    }
   }
 }
 
@@ -38,13 +60,19 @@ export async function toggleJobLike(
   try {
     const likeRef = doc(db, `jobs/${jobId}/likes`, userId);
     const likeDoc = await getDoc(likeRef);
+    const jobRef = doc(db, "jobs", jobId);
 
     if (likeDoc.exists()) {
       // Unlike
       await deleteDoc(likeRef);
-      await updateDoc(doc(db, "jobs", jobId), {
-        likes: increment(-1),
-      });
+      try {
+        await updateDoc(jobRef, {
+          likes: increment(-1),
+        });
+      } catch (updateError) {
+        console.warn("Could not update like count:", updateError);
+        // Continue anyway - the like was removed
+      }
       return false;
     } else {
       // Like
@@ -52,9 +80,14 @@ export async function toggleJobLike(
         userId,
         createdAt: new Date(),
       });
-      await updateDoc(doc(db, "jobs", jobId), {
-        likes: increment(1),
-      });
+      try {
+        await updateDoc(jobRef, {
+          likes: increment(1),
+        });
+      } catch (updateError) {
+        console.warn("Could not update like count:", updateError);
+        // Continue anyway - the like was added
+      }
       return true;
     }
   } catch (error) {
@@ -86,7 +119,8 @@ export async function hasUserLikedJob(
  */
 export async function submitJobApplication(
   jobId: string,
-  userId: string
+  userId: string,
+  applicationData?: Record<string, any>
 ): Promise<void> {
   try {
     // Check if already applied
@@ -99,10 +133,11 @@ export async function submitJobApplication(
 
     // Create application record
     await setDoc(applicationRef, {
-      userId,
+      applicantId: userId,
       jobId,
       status: "pending",
       appliedAt: new Date(),
+      ...applicationData,
     });
 
     // Increment applies count

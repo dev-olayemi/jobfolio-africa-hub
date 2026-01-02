@@ -44,7 +44,7 @@ interface AuthContextType {
     firstName: string,
     lastName: string,
     country?: string,
-    accountType?: "jobseeker" | "recruiter" | "company" | "employer",
+    accountType?: "jobseeker" | "agent" | "company",
     roleDetails?: Record<string, unknown>
   ) => Promise<void>;
   signIn: (email: string, password: string) => Promise<any>;
@@ -239,9 +239,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     country?: string,
     accountType:
       | "jobseeker"
-      | "recruiter"
-      | "company"
-      | "employer" = "jobseeker",
+      | "agent"
+      | "company" = "jobseeker",
     roleDetails?: Record<string, unknown>
   ) => {
     const userCredential = await createUserWithEmailAndPassword(
@@ -264,34 +263,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       accountStatus: accountType === "jobseeker" ? "active" : "pending",
       badges: [],
       isAdmin: false,
+      emailVerified: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
 
-    // Add role-specific details
-    if (accountType === "recruiter" && roleDetails) {
-      (profileData as any).recruiterDetails = {
-        companyName: roleDetails.companyName,
-        experience: roleDetails.experience,
-        specialization: roleDetails.specialization || [],
-        licenseNumber: roleDetails.licenseNumber,
-      };
-    } else if (accountType === "company" && roleDetails) {
-      (profileData as any).companyDetails = {
-        companyName: roleDetails.companyName,
-        website: roleDetails.website,
-        industry: roleDetails.industry,
-        companySize: roleDetails.companySize,
-        registrationNumber: roleDetails.registrationNumber,
-        verified: false,
-      };
-    } else if (accountType === "employer" && roleDetails) {
-      (profileData as any).employerDetails = {
-        businessName: roleDetails.businessName,
-        businessType: roleDetails.businessType,
-        yearsInBusiness: roleDetails.yearsInBusiness,
-      };
-    }
+    // Add role-specific details based on new account types
+        // Add role-specific details, but don't write undefined fields (Firestore rejects undefined)
+        if (roleDetails) {
+          if (accountType === "recruiter") {
+            const rd: Record<string, unknown> = {};
+            if (roleDetails.companyName) rd.companyName = roleDetails.companyName;
+            if (roleDetails.experience) rd.experience = roleDetails.experience;
+            if (roleDetails.specialization) rd.specialization = roleDetails.specialization;
+            if (roleDetails.licenseNumber) rd.licenseNumber = roleDetails.licenseNumber;
+            if (Object.keys(rd).length > 0) (profileData as any).recruiterDetails = rd;
+          } else if (accountType === "company") {
+            const cd: Record<string, unknown> = {};
+            if (roleDetails.companyName) cd.companyName = roleDetails.companyName;
+            if (roleDetails.website) cd.website = roleDetails.website;
+            if (roleDetails.industry) cd.industry = roleDetails.industry;
+            if (roleDetails.companySize) cd.companySize = roleDetails.companySize;
+            if (roleDetails.registrationNumber) cd.registrationNumber = roleDetails.registrationNumber;
+            cd.verified = false;
+            if (Object.keys(cd).length > 0) (profileData as any).companyDetails = cd;
+          } else if (accountType === "employer") {
+            const ed: Record<string, unknown> = {};
+            if (roleDetails.businessName) ed.businessName = roleDetails.businessName;
+            if (roleDetails.businessType) ed.businessType = roleDetails.businessType;
+            if (roleDetails.yearsInBusiness) ed.yearsInBusiness = roleDetails.yearsInBusiness;
+            if (Object.keys(ed).length > 0) (profileData as any).employerDetails = ed;
+          }
+        }
 
     await setDoc(doc(db, "profiles", user.uid), profileData);
     // Remember sign-in time for session expiry checks

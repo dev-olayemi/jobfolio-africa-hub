@@ -12,6 +12,7 @@ import JobDetails from "./pages/JobDetails";
 import Profile from "./pages/Profile";
 import BuildFolio from "./pages/BuildFolio";
 import Auth from "./pages/Auth";
+import StreamlinedAuth from "./pages/StreamlinedAuth";
 import Login from "./pages/Login";
 import AccountTypeSelection from "./pages/AccountTypeSelection";
 import Payment from "./pages/Payment";
@@ -59,7 +60,7 @@ const App = () => (
                 path="/select-account-type"
                 element={<AccountTypeSelection />}
               />
-              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth" element={<StreamlinedAuth />} />
               <Route path="/login" element={<Login />} />
               <Route path="/post/:id" element={<PostDetailComponent />} />
               <Route path="/feed" element={<InBuzz />} />

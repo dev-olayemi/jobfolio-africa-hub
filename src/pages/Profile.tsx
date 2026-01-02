@@ -26,8 +26,9 @@ import {
   Camera,
   Loader2,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, addDoc, getDocs, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { downloadCVPDF } from "@/lib/cvGenerator";
 import { uploadProfileImage } from "@/lib/imageUpload";
@@ -106,6 +107,15 @@ const Profile = () => {
   const [profilePictureUrl, setProfilePictureUrl] = useState(
     profile?.profilePictureUrl || ""
   );
+  const [experiences, setExperiences] = useState<any[]>([]);
+  const [education, setEducation] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [addingExp, setAddingExp] = useState(false);
+  const [addingEdu, setAddingEdu] = useState(false);
+  const [addingProj, setAddingProj] = useState(false);
+  const [newExp, setNewExp] = useState({ title: "", company: "", startDate: "", endDate: "", description: "" });
+  const [newEdu, setNewEdu] = useState({ school: "", degree: "", startYear: "", endYear: "", description: "" });
+  const [newProj, setNewProj] = useState({ title: "", description: "", link: "", media: [] as string[] });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -118,6 +128,25 @@ const Profile = () => {
     setBadges(profile?.badges || []);
     setProfilePictureUrl(profile?.profilePictureUrl || "");
   }, [profile]);
+
+  useEffect(() => {
+    const fetchSubcollections = async () => {
+      if (!user) return;
+      try {
+        const expSnap = await getDocs(collection(db, `profiles/${user.uid}/experiences`));
+        setExperiences(expSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+        const eduSnap = await getDocs(collection(db, `profiles/${user.uid}/education`));
+        setEducation(eduSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+        const projSnap = await getDocs(collection(db, `profiles/${user.uid}/projects`));
+        setProjects(projSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        console.error("Failed to load profile subcollections:", err);
+      }
+    };
+    fetchSubcollections();
+  }, [user]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -137,6 +166,111 @@ const Profile = () => {
     if (badges.length >= 10) return;
     setBadges([...badges, trimmed]);
     setNewBadge("");
+  };
+
+  const addExperience = async () => {
+    if (!user) return;
+    try {
+      const ref = await addDoc(collection(db, `profiles/${user.uid}/experiences`), {
+        ...newExp,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      setExperiences([{ id: ref.id, ...newExp }, ...experiences]);
+      setNewExp({ title: "", company: "", startDate: "", endDate: "", description: "" });
+      setAddingExp(false);
+      toast.success("Experience added");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add experience");
+    }
+  };
+
+  const removeExperience = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, `profiles/${user.uid}/experiences`, id));
+      setExperiences(experiences.filter((e) => e.id !== id));
+      toast.success("Experience removed");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to remove experience");
+    }
+  };
+
+  const addEducation = async () => {
+    if (!user) return;
+    try {
+      const ref = await addDoc(collection(db, `profiles/${user.uid}/education`), {
+        ...newEdu,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      setEducation([{ id: ref.id, ...newEdu }, ...education]);
+      setNewEdu({ school: "", degree: "", startYear: "", endYear: "", description: "" });
+      setAddingEdu(false);
+      toast.success("Education added");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add education");
+    }
+  };
+
+  const removeEducation = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, `profiles/${user.uid}/education`, id));
+      setEducation(education.filter((e) => e.id !== id));
+      toast.success("Education removed");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to remove education");
+    }
+  };
+
+  const handleProjectUpload = async (file: File) => {
+    if (!user) return null;
+    try {
+      const res = await uploadToDrive(file, user.uid);
+      const url = res?.link || res?.url || (res?.fileId ? `https://drive.google.com/uc?export=view&id=${res.fileId}` : null);
+      return url;
+    } catch (err) {
+      console.error("Project upload failed, falling back to client upload", err);
+      const r = await uploadProfileImage(file);
+      return r.success && r.data ? r.data : null;
+    }
+  };
+
+  const addProject = async () => {
+    if (!user) return;
+    try {
+      const payload = {
+        ...newProj,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      const ref = await addDoc(collection(db, `profiles/${user.uid}/projects`), payload);
+      setProjects([{ id: ref.id, ...newProj }, ...projects]);
+      setNewProj({ title: "", description: "", link: "", media: [] });
+      setAddingProj(false);
+      toast.success("Project added");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add project");
+    }
+  };
+
+  const removeProject = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, `profiles/${user.uid}/projects`, id));
+      setProjects(projects.filter((p) => p.id !== id));
+      toast.success("Project removed");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to remove project");
+    }
   };
 
   const removeBadge = (b: string) => {
@@ -284,6 +418,19 @@ const Profile = () => {
     subscription &&
     (subscription.status === "trial" || subscription.status === "active");
 
+  const computeProfileCompleteness = () => {
+    let score = 0;
+    if (profile?.firstName) score += 15;
+    if (profile?.lastName) score += 15;
+    if (profile?.profilePictureUrl) score += 20;
+    if (folio?.skills?.length) score += 20;
+    if (folio?.industries?.length) score += 15;
+    if (profile?.email) score += 15;
+    return Math.min(100, score);
+  };
+
+  const profileCompleteness = computeProfileCompleteness();
+
   const getTrialDaysLeft = () => {
     if (subscription?.status === "trial" && subscription.trialEndDate) {
       const now = new Date();
@@ -306,33 +453,32 @@ const Profile = () => {
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
         <div className="container max-w-6xl mx-auto px-3 md:px-4 py-8">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
             <div>
-              <h1 className="text-4xl font-bold mb-1">My Profile</h1>
-              <p className="text-muted-foreground">
-                Manage your professional information
-              </p>
+              <h1 className="text-3xl sm:text-4xl font-extrabold mb-1">My Profile</h1>
+              <p className="text-sm text-muted-foreground">Manage your professional information and public folio</p>
             </div>
-            {!isEditing && (
-              <Button
-                onClick={() => setIsEditing(true)}
-                variant="outline"
-                size="lg"
-                className="gap-2"
-              >
-                <Edit2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Edit</span>
-              </Button>
-            )}
+            <div className="ml-auto">
+              {!isEditing ? (
+                <Button onClick={() => setIsEditing(true)} variant="outline" className="h-10 px-4">
+                  <Edit2 className="h-4 w-4 mr-2" /> Edit profile
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} className="h-10 px-4 bg-primary text-white">Save</Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)} className="h-10 px-4">Cancel</Button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Profile Header Card */}
-          <Card className="mb-8 border-0 shadow-lg">
-            <div className="h-32 bg-gradient-to-r from-primary via-accent to-primary opacity-80" />
+          <Card className="mb-8 rounded-xl shadow-sm overflow-hidden">
+            <div className="h-28 sm:h-32 bg-gradient-to-r from-primary/70 to-accent/70 opacity-90" />
             <CardContent className="pt-0">
               <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-16 relative z-10 pb-6">
                 <div className="relative flex-shrink-0 group">
-                  <Avatar className="h-40 w-40 rounded-2xl border-4 border-background shadow-lg">
+                  <Avatar className="h-36 w-36 sm:h-40 sm:w-40 rounded-2xl border-4 border-background shadow-lg">
                     <AvatarImage
                       src={profilePictureUrl}
                       alt={profile.firstName}
@@ -357,32 +503,57 @@ const Profile = () => {
                 </div>
 
                 <div className="flex-1 min-w-0 pb-4">
-                  <h2 className="text-3xl md:text-4xl font-bold mb-2">
-                    {profile.firstName} {profile.lastName}
-                  </h2>
-                  <div className="flex flex-col gap-2 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-3xl md:text-4xl font-bold mb-1">
+                        {profile.firstName} {profile.lastName}
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {profile.headline || profile.title || "Job seeker & professional"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground">Profile</div>
+                      <div className="mt-1 text-sm font-semibold">{profileCompleteness}% complete</div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 mt-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Mail className="h-4 w-4 flex-shrink-0" />
-                      <span>{profile.email}</span>
+                      <span className="truncate">{profile.email}</span>
                     </div>
                     {profile.country && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Globe className="h-4 w-4 flex-shrink-0" />
                         <span>{profile.country}</span>
                       </div>
                     )}
                   </div>
+
+                  {folio?.skills && folio.skills.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold mb-2">Top Skills</p>
+                      <div className="flex flex-wrap gap-2">
+                        {folio.skills.slice(0, 8).map((s: string) => (
+                          <Badge key={s} variant="outline" className="px-3 py-1">
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Main Grid */}
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
               {/* Achievements */}
-              <Card className="border-0 shadow-md">
+              <Card className="rounded-xl shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Award className="h-5 w-5 text-amber-500" />
@@ -415,19 +586,17 @@ const Profile = () => {
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-8">
-                      <Award className="h-12 w-12 text-muted mx-auto mb-3" />
-                      <p className="text-sm text-muted-foreground">
-                        Achievements will appear here as you use the platform
-                      </p>
-                    </div>
+                        <div className="text-center py-8">
+                          <Award className="h-12 w-12 text-muted mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">Achievements will appear here as you use the platform</p>
+                        </div>
                   )}
                 </CardContent>
               </Card>
               {/*  */}
               {/* Professional Folio */}
-              {hasFolio && folio && (
-                <Card className="border-0 shadow-md">
+                  {hasFolio && folio && (
+                    <Card className="rounded-xl shadow-sm">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Briefcase className="h-5 w-5 text-primary" />
@@ -487,33 +656,179 @@ const Profile = () => {
                     )}
 
                     {/* CV Download Button */}
-                    <div className="pt-2 border-t">
-                      <Button
-                        onClick={() => {
-                          const cvData = {
-                            personalInfo: {
-                              fullName: `${profile.firstName} ${profile.lastName}`,
-                              email: profile.email,
-                              phone: folio?.personalInfo?.phone,
-                              location: folio?.personalInfo?.location,
-                              summary: folio?.personalInfo?.summary,
-                            },
-                            skills: folio?.skills || [],
-                            education: folio?.education || [],
-                            experience: folio?.experience || [],
-                          };
-                          downloadCVPDF(cvData);
-                        }}
-                        className="w-full gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                        size="sm"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download CV as PDF
-                      </Button>
-                    </div>
+                          <div className="pt-2 border-t">
+                            <Button
+                              onClick={() => {
+                                const cvData = {
+                                  personalInfo: {
+                                    fullName: `${profile.firstName} ${profile.lastName}`,
+                                    email: profile.email,
+                                    phone: folio?.personalInfo?.phone,
+                                    location: folio?.personalInfo?.location,
+                                    summary: folio?.personalInfo?.summary,
+                                  },
+                                  skills: folio?.skills || [],
+                                  education: folio?.education || [],
+                                  experience: folio?.experience || [],
+                                };
+                                downloadCVPDF(cvData);
+                              }}
+                              className="w-full gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 h-10"
+                              size="sm"
+                            >
+                              <Download className="h-4 w-4" />
+                              Download CV as PDF
+                            </Button>
+                          </div>
                   </CardContent>
                 </Card>
               )}
+
+              {/* Profile Builder: Experiences, Education, Projects */}
+              <Card className="border-0 shadow-md mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Career Builder</span>
+                    <span className="text-sm text-muted-foreground">Create a profile companies will trust</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Experiences */}
+                  <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold">Experience</h4>
+                        <Button size="sm" variant="outline" onClick={() => setAddingExp((s) => !s)}>
+                          {addingExp ? "Close" : "Add"}
+                        </Button>
+                      </div>
+
+                    {addingExp && (
+                      <div className="space-y-2 mb-3">
+                        <Input placeholder="Job title" value={newExp.title} onChange={(e) => setNewExp({...newExp, title: e.target.value})} />
+                        <Input placeholder="Company" value={newExp.company} onChange={(e) => setNewExp({...newExp, company: e.target.value})} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Input placeholder="Start date (YYYY-MM)" value={newExp.startDate} onChange={(e) => setNewExp({...newExp, startDate: e.target.value})} />
+                          <Input placeholder="End date (YYYY-MM or Present)" value={newExp.endDate} onChange={(e) => setNewExp({...newExp, endDate: e.target.value})} />
+                        </div>
+                        <textarea className="w-full rounded-md border px-3 py-2" placeholder="Short description" value={newExp.description} onChange={(e) => setNewExp({...newExp, description: e.target.value})} />
+                        <div className="flex gap-2">
+                          <Button onClick={addExperience} size="sm">Add Experience</Button>
+                          <Button variant="outline" size="sm" onClick={() => setAddingExp(false)}>Cancel</Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {experiences.map((e) => (
+                        <div key={e.id} className="p-3 rounded-lg border border-border/40 flex items-start justify-between">
+                          <div>
+                            <div className="font-medium">{e.title} {e.company ? `• ${e.company}` : ''}</div>
+                            <div className="text-xs text-muted-foreground">{e.startDate} — {e.endDate || 'Present'}</div>
+                            {e.description && <div className="text-sm mt-1 text-muted-foreground">{e.description}</div>}
+                          </div>
+                          <div>
+                            <Button variant="ghost" size="sm" onClick={() => removeExperience(e.id)}>Remove</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Education */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold">Education</h4>
+                      <Button size="sm" onClick={() => setAddingEdu((s) => !s)}>
+                        {addingEdu ? <X className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    {addingEdu && (
+                      <div className="space-y-2 mb-3">
+                        <Input placeholder="School" value={newEdu.school} onChange={(e) => setNewEdu({...newEdu, school: e.target.value})} />
+                        <Input placeholder="Degree" value={newEdu.degree} onChange={(e) => setNewEdu({...newEdu, degree: e.target.value})} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Input placeholder="Start year" value={newEdu.startYear} onChange={(e) => setNewEdu({...newEdu, startYear: e.target.value})} />
+                          <Input placeholder="End year" value={newEdu.endYear} onChange={(e) => setNewEdu({...newEdu, endYear: e.target.value})} />
+                        </div>
+                        <textarea className="w-full rounded-md border px-3 py-2" placeholder="Notes" value={newEdu.description} onChange={(e) => setNewEdu({...newEdu, description: e.target.value})} />
+                        <div className="flex gap-2">
+                          <Button onClick={addEducation} size="sm">Add Education</Button>
+                          <Button variant="outline" size="sm" onClick={() => setAddingEdu(false)}>Cancel</Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {education.map((ed) => (
+                        <div key={ed.id} className="p-3 border rounded-md flex items-start justify-between">
+                          <div>
+                            <div className="font-medium">{ed.school} {ed.degree ? `• ${ed.degree}` : ''}</div>
+                            <div className="text-xs text-muted-foreground">{ed.startYear} — {ed.endYear || ''}</div>
+                            {ed.description && <div className="text-sm mt-1 text-muted-foreground">{ed.description}</div>}
+                          </div>
+                          <div>
+                            <Button variant="ghost" size="sm" onClick={() => removeEducation(ed.id)}>Remove</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Projects */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold">Projects</h4>
+                      <Button size="sm" onClick={() => setAddingProj((s) => !s)}>
+                        {addingProj ? <X className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
+                      </Button>
+                    </div>
+
+                    {addingProj && (
+                      <div className="space-y-2 mb-3">
+                        <Input placeholder="Project title" value={newProj.title} onChange={(e) => setNewProj({...newProj, title: e.target.value})} />
+                        <Input placeholder="Link (optional)" value={newProj.link} onChange={(e) => setNewProj({...newProj, link: e.target.value})} />
+                        <textarea className="w-full rounded-md border px-3 py-2" placeholder="Short description" value={newProj.description} onChange={(e) => setNewProj({...newProj, description: e.target.value})} />
+                        <div className="flex items-center gap-2">
+                          <input type="file" accept="image/*,video/*" onChange={async (ev) => {
+                            const file = ev.target.files?.[0];
+                            if (!file) return;
+                            const url = await handleProjectUpload(file);
+                            if (url) setNewProj({...newProj, media: [...newProj.media, url]});
+                          }} />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={addProject} size="sm">Add Project</Button>
+                          <Button variant="outline" size="sm" onClick={() => setAddingProj(false)}>Cancel</Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {projects.map((p) => (
+                        <div key={p.id} className="p-3 border rounded-md">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="font-medium">{p.title}</div>
+                              {p.link && <a href={p.link} className="text-xs text-primary hover:underline">{p.link}</a>}
+                              {p.description && <div className="text-sm mt-1 text-muted-foreground">{p.description}</div>}
+                            </div>
+                            <div>
+                              <Button variant="ghost" size="sm" onClick={() => removeProject(p.id)}>Remove</Button>
+                            </div>
+                          </div>
+                          {p.media && p.media.length > 0 && (
+                            <div className="mt-2 flex gap-2 overflow-x-auto">
+                              {p.media.map((m: string, idx: number) => (
+                                <img key={idx} src={m} className="h-20 w-32 object-cover rounded" alt={`media-${idx}`} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Location & Settings */}
               <Card className="border-0 shadow-md">

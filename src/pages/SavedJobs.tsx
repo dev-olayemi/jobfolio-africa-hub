@@ -31,6 +31,7 @@ import {
   Briefcase,
   DollarSign,
 } from "lucide-react";
+import { formatSalary } from "@/lib/utils";
 
 const SavedJobs = () => {
   const navigate = useNavigate();
@@ -155,13 +156,10 @@ const SavedJobs = () => {
                           {job.experienceLevel}
                         </div>
                       )}
-                      {job.salary?.min && (
+                      {job.salary && (
                         <div className="flex items-center gap-1">
                           <DollarSign className="h-4 w-4" />
-                          {job.salary.currency}{" "}
-                          {job.salary.min.toLocaleString()}
-                          {job.salary.max &&
-                            ` - ${job.salary.max.toLocaleString()}`}
+                          {formatSalary(job.salary)}
                         </div>
                       )}
                     </div>

@@ -24,6 +24,7 @@ import {
   Zap,
   AlertCircle,
 } from "lucide-react";
+import { Share2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -35,6 +36,7 @@ import {
   submitJobApplication,
   hasUserApplied,
 } from "@/lib/jobMetrics";
+import { formatSalary } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -184,6 +186,23 @@ const JobDetails = () => {
     }
   };
 
+  const handleShare = async () => {
+    const url = `${window.location.origin}/jobs/${id}`;
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title: job?.title || "Job", url });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        toast.success("Job link copied to clipboard");
+      } else {
+        window.prompt("Copy this link", url);
+      }
+    } catch (err) {
+      console.error("Share failed", err);
+      toast.error("Unable to share job link");
+    }
+  };
+
   const getDaysAgo = (timestamp: any) => {
     // Support Firestore Timestamp, JS Date, numeric epoch, or ISO string.
     if (!timestamp) return 0;
@@ -220,30 +239,7 @@ const JobDetails = () => {
       .slice(0, 2);
   };
 
-  const formatSalary = (salary: any) => {
-    // salary may be a string (legacy) or an object { min, max, currency }
-    if (!salary) return "";
-    if (typeof salary === "string") return salary;
-    if (typeof salary === "object") {
-      const { min, max, currency } = salary;
-      const c = currency ? `${currency} ` : "";
-      if (min != null && max != null) {
-        try {
-          const minNum = typeof min === "number" ? min : parseInt(min as any);
-          const maxNum = typeof max === "number" ? max : parseInt(max as any);
-          if (!isNaN(minNum) && !isNaN(maxNum)) {
-            return `${c}${minNum.toLocaleString()} - ${maxNum.toLocaleString()}`;
-          }
-        } catch (e) {
-          // fallback
-        }
-      }
-      if (min != null) return `${c}${min}`;
-      if (max != null) return `${c}${max}`;
-      return "";
-    }
-    return String(salary);
-  };
+  // using shared formatSalary from utils
 
   const coerceToStringArray = (val: any): string[] => {
     if (!val) return [];
@@ -368,31 +364,54 @@ const JobDetails = () => {
                   </div>
 
                   <div className="flex flex-col gap-2 mb-4">
-                    <Button
-                      onClick={handleApply}
-                      disabled={isApplying || hasApplied}
-                      size="lg"
-                      className="w-full shadow-md bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                    >
-                      {hasApplied ? (
-                        <>
-                          <CheckCircle className="h-5 w-5 mr-2" />
-                          Applied
-                        </>
-                      ) : (
-                        <>
-                          <Briefcase className="h-5 w-5 mr-2" />
-                          Apply Now
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleApply}
+                        disabled={isApplying || hasApplied}
+                        size="lg"
+                        className="flex-1 shadow-md bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                      >
+                        {hasApplied ? (
+                          <>
+                            <CheckCircle className="h-5 w-5 mr-2" />
+                            Applied
+                          </>
+                        ) : (
+                          <>
+                            <Briefcase className="h-5 w-5 mr-2" />
+                            Apply Now
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        variant={isLiked ? "destructive" : "outline"}
+                        size="icon"
+                        onClick={handleLike}
+                        disabled={isLiking}
+                        className="shadow-sm"
+                        title={isLiked ? "Saved" : "Save job"}
+                      >
+                        <Heart className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleShare}
+                        title="Share job"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
                     <Button
                       onClick={() => navigate("/payment")}
                       variant="outline"
-                      size="lg"
+                      size="sm"
                       className="w-full shadow-sm"
                     >
-                      <Zap className="h-5 w-5 mr-2" />
+                      <Zap className="h-4 w-4 mr-2" />
                       Refine CV for this Job (₦1,000)
                     </Button>
                   </div>
@@ -430,6 +449,11 @@ const JobDetails = () => {
                   <p className="text-sm sm:text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">
                     {job.description}
                   </p>
+
+                  <div className="mt-4 p-3 bg-muted/5 rounded border border-border/30 text-sm">
+                    <strong>Section summary:</strong> What this role is about and why it exists. Look here to understand the
+                    core objective of the job and what success looks like in the first 90 days.
+                  </div>
                 </CardContent>
               </Card>
 
@@ -457,6 +481,11 @@ const JobDetails = () => {
                         )
                       )}
                     </ul>
+
+                    <div className="mt-4 p-3 bg-muted/5 rounded border border-border/30 text-sm">
+                      <strong>How to read this section:</strong> These are the day-to-day outcomes you'll own. When applying,
+                      reference specific accomplishments that show you delivered similar work.
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -485,6 +514,15 @@ const JobDetails = () => {
                         )
                       )}
                     </ul>
+
+                    <div className="mt-4 p-3 bg-muted/5 rounded border border-border/30 text-sm">
+                      <strong>Applicant checklist:</strong>
+                      <ul className="list-disc ml-5 mt-2 text-sm text-muted-foreground">
+                        <li>Match at least 3 requirements in your profile or cover letter.</li>
+                        <li>Mention tools and metrics (numbers) you used to deliver results.</li>
+                        <li>Include links to portfolio or code samples if relevant.</li>
+                      </ul>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -529,6 +567,34 @@ const JobDetails = () => {
                   </CardContent>
                 </Card>
               ) : null}
+
+              <Card className="border-0 shadow-md">
+                <CardHeader>
+                  <h3 className="font-bold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    About the Company
+                  </h3>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {job.companyOverview || `${job.company} is a company operating in ${job.location}.`}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">{job.company}</Badge>
+                    <Badge variant="outline">{job.country}</Badge>
+                    <Badge variant="outline">{job.type}</Badge>
+                  </div>
+
+                  <div className="mt-3 p-3 bg-muted/5 rounded border border-border/30 text-sm">
+                    <strong>What applicants should know about the company:</strong>
+                    <ul className="list-disc ml-5 mt-2 text-sm text-muted-foreground">
+                      <li>Company size and industry give context to role scope.</li>
+                      <li>Check company values to assess cultural fit.</li>
+                      <li>Location and remote policy affect day-to-day expectations.</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
 
               <Card className="border-0 shadow-md bg-primary/5">
                 <CardContent className="pt-6">
