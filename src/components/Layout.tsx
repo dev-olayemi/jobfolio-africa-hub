@@ -328,29 +328,17 @@ export const Layout = ({ children }: LayoutProps) => {
             <span className="text-xs">Jobs</span>
           </button>
 
-          {/* Updates (feed) */}
+          {/* InBuzz */}
           <button
-            onClick={() => navigate("/feed")}
+            onClick={() => navigate("/inbuzz")}
             className={`flex flex-col items-center justify-center py-2 ${
-              isActive("/feed") ? "text-primary" : "text-muted-foreground"
+              isActive("/inbuzz") || isActive("/feed") ? "text-primary" : "text-muted-foreground"
             }`}
           >
-            <div className="h-6 w-6 rounded-md flex items-center justify-center">
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  d="M3 12h18M3 6h18M3 18h18"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+            <div className="h-6 w-6 rounded-md flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-400 text-white text-[10px] font-bold">
+              inb
             </div>
-            <span className="text-xs">Updates</span>
+            <span className="text-xs">InBuzz</span>
           </button>
 
           {/* Center Create + */}
