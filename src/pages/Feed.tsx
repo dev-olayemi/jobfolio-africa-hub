@@ -125,7 +125,7 @@ const Feed = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container max-w-2xl mx-auto px-4 py-6">
+        <div className="container max-w-2xl mx-auto px-3 sm:px-4 py-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -141,27 +141,27 @@ const Feed = () => {
 
           {/* Create Post Card */}
           <div className={`bg-card border border-border rounded-xl p-4 mb-6 transition-all ${isFocused ? "shadow-lg ring-2 ring-primary/20" : "shadow-sm"}`}>
-            <div className="flex gap-3">
-              <Avatar className="h-11 w-11 ring-2 ring-primary/10">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Avatar className="h-10 w-10 sm:h-11 sm:w-11 ring-2 ring-primary/10">
                 <AvatarImage src={profile?.profilePicture || undefined} />
                 <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                  {profile?.firstName?.charAt(0) || profile?.displayName?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || "U"}
+                  {(profile?.firstName?.[0] || profile?.displayName?.[0] || user?.email?.[0] || "U").toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               
               <div className="flex-1">
                 {user ? (
-                  <>
+                    <div className="flex flex-col sm:flex-row items-center justify-between mt-3 pt-3 border-t border-border/50">
                     <textarea
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
                       onFocus={() => setIsFocused(true)}
                       placeholder={`What's happening, ${profile?.firstName || profile?.displayName || "there"}?`}
-                      className="w-full min-h-[80px] p-3 rounded-lg border border-input resize-none bg-muted/30 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground/60"
+                      className="w-full min-h-[64px] sm:min-h-[80px] p-3 rounded-lg border border-input resize-none bg-muted/30 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground/60"
                     />
 
                     {/* Media URL Input */}
-                    {showMediaInput && (
+                          <span className="hidden sm:inline">Media</span>
                       <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border">
                         <div className="flex gap-2">
                           <Input
@@ -171,24 +171,27 @@ const Feed = () => {
                             className="flex-1"
                             onKeyPress={(e) => e.key === 'Enter' && addMediaUrl()}
                           />
-                          <Button onClick={addMediaUrl} size="sm">
+                          <span className="hidden sm:inline">Emoji</span>
                             <Plus className="h-4 w-4" />
                           </Button>
                           <Button 
-                            onClick={() => setShowMediaInput(false)} 
-                            variant="outline" 
-                            size="sm"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Supported: Images (jpg, png, gif, webp) and Videos (mp4, YouTube, Vimeo)
-                        </p>
+                      <div className="w-full sm:w-auto mt-3 sm:mt-0 sm:ml-4">
+                        <Button
+                          onClick={handlePost}
+                          disabled={isPosting || (!content.trim() && mediaUrls.length === 0)}
+                          className="w-full sm:w-auto px-4 sm:px-6"
+                        >
+                          {isPosting ? (
+                            "Posting..."
+                          ) : (
+                            <>
+                              <Send className="h-4 w-4 mr-2" />
+                              <span className="hidden sm:inline">Share</span>
+                              <span className="sm:hidden">Post</span>
+                            </>
+                          )}
+                        </Button>
                       </div>
-                    )}
-
-                    {/* Media Preview */}
                     {mediaUrls.length > 0 && (
                       <div className="mt-3 space-y-2">
                         {mediaUrls.map((url, i) => {
@@ -219,7 +222,7 @@ const Feed = () => {
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50 flex-wrap">
                       <div className="flex items-center gap-1">
                         <Button
                           type="button"
@@ -246,7 +249,7 @@ const Feed = () => {
                       <Button 
                         onClick={handlePost} 
                         disabled={isPosting || (!content.trim() && mediaUrls.length === 0)}
-                        className="px-6"
+                        className="px-4 sm:px-6 mt-2 sm:mt-0"
                       >
                         {isPosting ? (
                           "Posting..."
