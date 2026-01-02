@@ -311,6 +311,24 @@ export const Layout = ({ children }: LayoutProps) => {
         </div>
       </header>
 
+      {/* Ad Banner */}
+      <div className="w-full bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-center gap-4 bg-card rounded-lg border border-border shadow-sm p-4 min-h-[80px]">
+            <div className="flex-1 flex items-center justify-center gap-6">
+              <div className="text-center">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Sponsored</span>
+                <p className="text-lg font-semibold text-foreground mt-1">🚀 Boost Your Career with Premium Courses!</p>
+                <p className="text-sm text-muted-foreground">Get 40% off on all professional certifications. Limited time offer.</p>
+              </div>
+              <Button size="sm" className="shrink-0">
+                Learn More
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="flex-1 pb-20">{children}</main>
 
