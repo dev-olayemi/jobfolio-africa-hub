@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Timestamp } from "firebase/firestore";
 
 // User Profile Types
 export interface UserProfile {
-  [x: string]: string;
+  [key: string]: any;
   userId: string;
   email: string;
   firstName?: string;
