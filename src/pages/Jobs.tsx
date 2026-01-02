@@ -419,10 +419,10 @@ const Jobs = () => {
                         {/* Job Details */}
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline" className="text-xs">
-                            {job.type.charAt(0).toUpperCase() + job.type.slice(1)}
+                            {job.type ? (job.type.charAt(0).toUpperCase() + job.type.slice(1)) : "N/A"}
                           </Badge>
                           <Badge variant="outline" className="text-xs">
-                            {job.level.charAt(0).toUpperCase() + job.level.slice(1)}
+                            {job.level ? (job.level.charAt(0).toUpperCase() + job.level.slice(1)) : "N/A"}
                           </Badge>
                           <Badge variant="secondary" className="text-xs">
                             {job.category}
