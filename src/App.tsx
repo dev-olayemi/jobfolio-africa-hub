@@ -24,6 +24,7 @@ import AdminJobs from "./pages/AdminJobs";
 import AdminVerifications from "./pages/AdminVerifications";
 import PostJob from "./pages/PostJob";
 import Feed from "./pages/Feed";
+import InBuzz from "./pages/InBuzz";
 import PostDetail from "./pages/PostDetail";
 import Notifications from "./pages/Notifications";
 import ManageJobs from "./pages/ManageJobs";
@@ -61,7 +62,8 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/login" element={<Login />} />
               <Route path="/post/:id" element={<PostDetailComponent />} />
-              <Route path="/feed" element={<Feed />} />
+              <Route path="/feed" element={<InBuzz />} />
+              <Route path="/inbuzz" element={<InBuzz />} />
               <Route path="/jobs" element={<Jobs />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/jobs/:id" element={<JobDetails />} />
